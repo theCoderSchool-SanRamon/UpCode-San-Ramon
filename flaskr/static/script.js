@@ -143,18 +143,20 @@ Promise.all([
         fetch(`/eval?lat=${latS}&lng=${lngS}&fips=${sid}`)
             .then(r => r.json())
             .then(raw => {
-                const { name: nameRaw, info, urbanArea, ...other } = raw;
-                const name = nameRaw ?? "Unincorporated " + stateName;
+                // const { name: nameRaw, info, urbanArea, ...other } = raw;
+                // const name = nameRaw ?? "Unincorporated " + stateName;
 
-                console.log(raw);
+                // console.log(raw);
 
-                const content =
-                    `<b>${name}</b>` +
-                    Object.entries(info)
-                        .map(([k, v]) => `<br>${k}: ${v}`)
-                        .join('');
+                // const content =
+                //     `<b>${name}</b>` +
+                //     Object.entries(info)
+                //         .map(([k, v]) => `<br>${k}: ${v}`)
+                //         .join('');
 
-                drawUrbanArea(urbanArea);
+                const content = JSON.stringify(raw);
+
+                //drawUrbanArea(urbanArea);
 
                 L.popup()
                     .setLatLng(e.latlng)
