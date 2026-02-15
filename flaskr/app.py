@@ -4,7 +4,8 @@ import pydash as py_
 import requests
 import json
 
-from evaluators.morphology import *
+from flaskr.evaluators.morphology import *
+from flaskr.evaluators.wealth_distribution import *
 
 app = Flask(__name__, static_folder="./static")
 

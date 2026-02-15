@@ -3,8 +3,8 @@ Get TIGER/Shapefile Census Tracts and write them into GeoParquets by state
 Data from 2024 is used, TIGER files are deleted after use
 
 Usage:
-    python make_tract_parquets --out ./flaskr/data/parquets --states CA,NV,AZ
-    python make_tract_parquets --out ./flaskr/data/parquets
+    python ./flaskr/data/make_tract_parquets.py --path ./flaskr/data/tracts --states CA,NV,AZ
+    python ./flaskr/data/make_tract_parquets.py --path ./flaskr/data/tracts
 """
 
 import argparse
@@ -32,7 +32,7 @@ def normalize_tracts(gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
     gdf = gdf[keep].copy()
     if gdf.crs is None:
         gdf = gdf.set_crs("EPSG:4269")
-    gdf.to_crs("EPSG:4326")
+    gdf.to_crs("EPSG:4326", inplace=True)
     gdf["GEOID"] = gdf["GEOID"].astype(str)
     return gdf
 
@@ -55,6 +55,7 @@ def main(states: Iterable[str], dir: str) -> None:
 
             gdf = gpd.read_file(f"zip://{zip_to}")
             gdf = normalize_tracts(gdf)
+            gdf["centroid"] = gdf.to_crs("EPSG:3857").geometry.centroid.to_crs("EPSG:4326")
             gdf.to_parquet(out, index=False)
             print(f"  -> {out} ({len(gdf)} tracts)")
 

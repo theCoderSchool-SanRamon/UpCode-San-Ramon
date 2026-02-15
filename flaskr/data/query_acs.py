@@ -24,30 +24,39 @@ def geodesic_circle(lat, lon, r, n=180):
     lons, lats, _ = WGS84.fwd(np.full_like(az, lon), np.full_like(az, lat), az, np.full_like(az, r))
     return Polygon(zip(lons, lats))
 
-def get_tracts(lat: float, lng: float, radius: float, parquets: Path) -> GDF | None:
+def get_tracts(lat: float, lng: float, radius: float, parquets: Path) -> Optional[GDF]:
     circle = geodesic_circle(lat, lng, radius * M_PER_MI)
 
-    minx, miny, maxx, maxy = circle.bounds
     parts = []
     for path in glob(str(parquets / "*.parquet")):
         gdf = gpd.read_parquet(path)
-        gdf = gdf.cx[minx:maxx, miny:maxy]
+        centroids: gpd.GeoSeries = gdf["centroid"]
+        idx = centroids.sindex.query(circle, predicate="intersects")
+        gdf = gdf.iloc[idx]
         if len(gdf):
             parts.append(gdf)
 
     if not parts: return None
 
     tracts = GDF(pd.concat(parts, ignore_index=True)).to_crs("EPSG:4326")
-    return tracts[tracts.intersects(circle)]
+    return tracts
 
-def query_tracts(tracts: GDF, fields = List[str] | str) -> DF:
+def query_tracts(tracts: GDF, fields: List[str] | str) -> DF:
     fields = ",".join(fields) if isinstance(fields, list) else fields
+
+    from time import perf_counter
+
+    query_tracts.t = perf_counter()
 
     def fetch(geoid: str) -> dict:
         state, county, tract = geoid[:2], geoid[2:5], geoid[5:]
-        header, values = requests.get(_acs_url.format(fields=fields, tract=tract, state=state, county=county))
+        r = requests.get(_acs_url.format(fields=fields, tract=tract, state=state, county=county))
+        r.raise_for_status()
+        header, values = r.json()
         row = dict(zip(header, values))
         row["GEOID"] = geoid
+        print(f"fetched: [{geoid}] in {perf_counter() - query_tracts.t}s")
+        query_tracts.t = perf_counter()
         return row
     
-    return DF(fetch(tract) for tract in tracts["GEOID"])
+    return DF(fetch(tract) for tract in tracts["GEOID"]).set_index("GEOID").drop(columns=["state", "county", "tract"], errors="ignore")
