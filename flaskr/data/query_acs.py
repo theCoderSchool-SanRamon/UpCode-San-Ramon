@@ -6,6 +6,7 @@ from pyproj import Geod
 from glob import glob
 
 import requests
+import re
 
 from typing import *
 from pathlib import Path
@@ -41,22 +42,32 @@ def get_tracts(lat: float, lng: float, radius: float, parquets: Path) -> Optiona
     tracts = GDF(pd.concat(parts, ignore_index=True)).to_crs("EPSG:4326")
     return tracts
 
+def lookup_local(geoid: str, table: str) -> Optional[str]:
+    assert re.fullmatch(r"1400000US\d{11}", geoid)
+    assert re.fullmatch(r"[BC]\d{5}[A-Z]?_[EM]\d{3}", table)
+    with open(f"flaskr/data/acs/raw/acsdt5y2024-{table[:6].lower()}.dat") as f:
+        header = f.readline().split("|")
+        i = header.index(table)
+        for line in f:
+            if line.startswith(geoid):
+                values = line.split("|")
+                return values[i]
+
+    return None
+
 def query_tracts(tracts: GDF, fields: List[str] | str) -> DF:
-    fields = ",".join(fields) if isinstance(fields, list) else fields
+    fields = fields.split(",") if isinstance(fields, str) else fields
 
     from time import perf_counter
 
     query_tracts.t = perf_counter()
 
     def fetch(geoid: str) -> dict:
-        state, county, tract = geoid[:2], geoid[2:5], geoid[5:]
-        r = requests.get(_acs_url.format(fields=fields, tract=tract, state=state, county=county))
-        r.raise_for_status()
-        header, values = r.json()
-        row = dict(zip(header, values))
+        values = [lookup_local(f"1400000US{geoid}", field) for field in fields]
+        row = dict(zip(fields, values))
         row["GEOID"] = geoid
         print(f"fetched: [{geoid}] in {perf_counter() - query_tracts.t}s")
         query_tracts.t = perf_counter()
         return row
     
-    return DF(fetch(tract) for tract in tracts["GEOID"]).set_index("GEOID").drop(columns=["state", "county", "tract"], errors="ignore")
+    return DF(fetch(tract) for tract in tracts["GEOID"]).set_index("GEOID")
