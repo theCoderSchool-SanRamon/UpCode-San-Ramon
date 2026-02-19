@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Analysis</title>
+    <style>
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif; 
+            color: #1d1d1f; 
+            line-height: 1.5; 
+            padding: 20px 50px;
+            background-color: #ffffff; 
+        }
+
+        h1 { 
+            font-size: 28px; 
+            font-weight: 600; 
+            letter-spacing: -0.015em;
+            margin-bottom: 25px; 
+            padding-bottom: 20px;
+            border-bottom: 1px solid #aaaaaa;
+            width: 275px;
+        }
+
+        .data-point { 
+            margin-bottom: 12px; 
+            font-size: 1.1rem; 
+            color: #424245; 
+        }
+
+        .first-item { 
+            font-weight: 600; 
+            color: #000000; 
+            font-size: 1.3rem;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Analysis:</h1>
+
+    {% for line in data %}
+        <div class="data-point {% if loop.first %}first-item{% endif %}">
+            {{ line }}
+        </div>
+    {% endfor %}
+
+</body>
+</html>
