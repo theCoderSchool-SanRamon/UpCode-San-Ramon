@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react"
 import { Search, MapPin, ChevronDown, Target } from "lucide-react"
-import { usStates, preselectedCities, type CityOption } from "@/lib/mock-data"
+import { usStates, preselectedCities } from "@/lib/mock-data"
 import { USMap } from "@/components/us-map"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -19,9 +19,18 @@ interface MapLandingProps {
   onConfirmLocation: (location: SelectedLocation) => void
 }
 
+interface AutocompleteResult {
+  display: string
+  state: string
+  lat: number
+  lon: number
+}
+
 export function MapLanding({ onConfirmLocation }: MapLandingProps) {
   const [selectedState, setSelectedState] = useState<string | null>(null)
   const [query, setQuery] = useState("")
+  const [suggestions, setSuggestions] = useState<AutocompleteResult[]>([])
+  const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false)
   const [showSuggestions, setShowSuggestions] = useState(false)
   const [highlightIndex, setHighlightIndex] = useState(-1)
   const [confirmedLocation, setConfirmedLocation] =
@@ -31,20 +40,15 @@ export function MapLanding({ onConfirmLocation }: MapLandingProps) {
   const wrapperRef = useRef<HTMLDivElement>(null)
   const stateDropdownRef = useRef<HTMLDivElement>(null)
 
-  const filteredCities = preselectedCities
-    .filter((c) => {
-      if (selectedState && c.state !== selectedState) return false
-      if (query.length > 0) {
-        const q = query.toLowerCase()
-        return (
-          c.name.toLowerCase().includes(q) ||
-          c.fullName.toLowerCase().includes(q) ||
-          c.state.toLowerCase().includes(q)
-        )
-      }
-      return true
-    })
-    .slice(0, 8)
+  const filteredSuggestions = suggestions.filter((result) => {
+    if (!selectedState) return true
+    const stateName = usStates.find((state) => state.abbr === selectedState)?.name
+    const normalizedState = result.state.toLowerCase()
+    return (
+      normalizedState === selectedState.toLowerCase() ||
+      normalizedState === (stateName || "").toLowerCase()
+    )
+  })
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -65,14 +69,53 @@ export function MapLanding({ onConfirmLocation }: MapLandingProps) {
     return () => document.removeEventListener("mousedown", handleClickOutside)
   }, [])
 
-  function selectCity(city: CityOption) {
-    setQuery(city.fullName)
+  useEffect(() => {
+    const trimmedQuery = query.trim()
+    if (trimmedQuery.length <= 2) {
+      setSuggestions([])
+      setIsLoadingSuggestions(false)
+      return
+    }
+
+    const controller = new AbortController()
+    const timeoutId = window.setTimeout(async () => {
+      setIsLoadingSuggestions(true)
+      try {
+        const response = await fetch(
+          `/api/autocomplete?q=${encodeURIComponent(trimmedQuery)}`,
+          { signal: controller.signal }
+        )
+        const data = (await response.json()) as {
+          results?: AutocompleteResult[]
+        }
+        setSuggestions(data.results || [])
+      } catch {
+        if (!controller.signal.aborted) {
+          setSuggestions([])
+        }
+      } finally {
+        if (!controller.signal.aborted) {
+          setIsLoadingSuggestions(false)
+          setHighlightIndex(-1)
+        }
+      }
+    }, 250)
+
+    return () => {
+      controller.abort()
+      window.clearTimeout(timeoutId)
+    }
+  }, [query])
+
+  function selectSuggestion(result: AutocompleteResult) {
+    setQuery(result.display)
+    const [name] = result.display.split(",")
     setConfirmedLocation({
-      name: city.name,
-      fullName: city.fullName,
-      state: city.state,
-      lat: city.lat,
-      lng: city.lng,
+      name: (name || result.display).trim(),
+      fullName: result.display,
+      state: selectedState || result.state,
+      lat: result.lat,
+      lng: result.lon,
     })
     setShowSuggestions(false)
   }
@@ -81,15 +124,15 @@ export function MapLanding({ onConfirmLocation }: MapLandingProps) {
     if (e.key === "ArrowDown") {
       e.preventDefault()
       setHighlightIndex((prev) =>
-        Math.min(prev + 1, filteredCities.length - 1)
+        Math.min(prev + 1, filteredSuggestions.length - 1)
       )
     } else if (e.key === "ArrowUp") {
       e.preventDefault()
       setHighlightIndex((prev) => Math.max(prev - 1, -1))
     } else if (e.key === "Enter") {
       e.preventDefault()
-      if (highlightIndex >= 0 && highlightIndex < filteredCities.length) {
-        selectCity(filteredCities[highlightIndex])
+      if (highlightIndex >= 0 && highlightIndex < filteredSuggestions.length) {
+        selectSuggestion(filteredSuggestions[highlightIndex])
       }
     } else if (e.key === "Escape") {
       setShowSuggestions(false)
@@ -141,40 +184,50 @@ export function MapLanding({ onConfirmLocation }: MapLandingProps) {
             aria-autocomplete="list"
           />
 
-          {showSuggestions && filteredCities.length > 0 && (
+          {showSuggestions && query.trim().length > 2 && (
             <ul
               role="listbox"
               className="absolute left-0 right-0 z-20 mt-1 max-h-64 overflow-auto rounded-md border border-border bg-card shadow-lg"
             >
-              {filteredCities.map((city, index) => (
-                <li
-                  key={`${city.name}-${city.state}`}
-                  role="option"
-                  aria-selected={highlightIndex === index}
-                  className={cn(
-                    "flex cursor-pointer items-center gap-3 px-3 py-2 text-sm text-foreground transition-colors",
-                    highlightIndex === index
-                      ? "bg-secondary"
-                      : "hover:bg-secondary/60"
-                  )}
-                  onMouseEnter={() => setHighlightIndex(index)}
-                  onMouseDown={(e) => {
-                    e.preventDefault()
-                    selectCity(city)
-                  }}
-                >
-                  <MapPin className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                  <div>
-                    <span className="font-medium">{city.name}</span>
-                    <span className="text-muted-foreground">
-                      , {city.state}
-                    </span>
-                  </div>
-                  <span className="ml-auto font-mono text-[11px] text-muted-foreground">
-                    {city.lat.toFixed(2)}, {city.lng.toFixed(2)}
-                  </span>
+              {isLoadingSuggestions && (
+                <li className="px-3 py-2 text-sm text-muted-foreground">
+                  Searching...
                 </li>
-              ))}
+              )}
+              {!isLoadingSuggestions && filteredSuggestions.length === 0 && (
+                <li className="px-3 py-2 text-sm text-muted-foreground">
+                  No matches found
+                </li>
+              )}
+              {!isLoadingSuggestions &&
+                filteredSuggestions.map((result, index) => (
+                  <li
+                    key={`${result.display}-${result.lat}-${result.lon}`}
+                    role="option"
+                    aria-selected={highlightIndex === index}
+                    className={cn(
+                      "flex cursor-pointer items-center gap-3 px-3 py-2 text-sm text-foreground transition-colors",
+                      highlightIndex === index
+                        ? "bg-secondary"
+                        : "hover:bg-secondary/60"
+                    )}
+                    onMouseEnter={() => setHighlightIndex(index)}
+                    onMouseDown={(e) => {
+                      e.preventDefault()
+                      selectSuggestion(result)
+                    }}
+                  >
+                    <MapPin className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                    <div className="min-w-0 flex-1">
+                      <span className="block truncate font-medium">
+                        {result.display}
+                      </span>
+                    </div>
+                    <span className="ml-auto font-mono text-[11px] text-muted-foreground">
+                      {result.lat.toFixed(2)}, {result.lon.toFixed(2)}
+                    </span>
+                  </li>
+                ))}
             </ul>
           )}
         </div>
