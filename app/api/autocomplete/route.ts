@@ -10,13 +10,69 @@ interface PhotonFeature {
     street?: string
     city?: string
     state?: string
+    statecode?: string
     name?: string
   }
+}
+
+const STATE_ABBR_TO_NAME: Record<string, string> = {
+  AL: "Alabama",
+  AK: "Alaska",
+  AZ: "Arizona",
+  AR: "Arkansas",
+  CA: "California",
+  CO: "Colorado",
+  CT: "Connecticut",
+  DE: "Delaware",
+  FL: "Florida",
+  GA: "Georgia",
+  HI: "Hawaii",
+  ID: "Idaho",
+  IL: "Illinois",
+  IN: "Indiana",
+  IA: "Iowa",
+  KS: "Kansas",
+  KY: "Kentucky",
+  LA: "Louisiana",
+  ME: "Maine",
+  MD: "Maryland",
+  MA: "Massachusetts",
+  MI: "Michigan",
+  MN: "Minnesota",
+  MS: "Mississippi",
+  MO: "Missouri",
+  MT: "Montana",
+  NE: "Nebraska",
+  NV: "Nevada",
+  NH: "New Hampshire",
+  NJ: "New Jersey",
+  NM: "New Mexico",
+  NY: "New York",
+  NC: "North Carolina",
+  ND: "North Dakota",
+  OH: "Ohio",
+  OK: "Oklahoma",
+  OR: "Oregon",
+  PA: "Pennsylvania",
+  RI: "Rhode Island",
+  SC: "South Carolina",
+  SD: "South Dakota",
+  TN: "Tennessee",
+  TX: "Texas",
+  UT: "Utah",
+  VT: "Vermont",
+  VA: "Virginia",
+  WA: "Washington",
+  WV: "West Virginia",
+  WI: "Wisconsin",
+  WY: "Wyoming",
 }
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const query = (searchParams.get("q") || "").trim()
+  const selectedStateAbbr = (searchParams.get("state") || "").trim().toUpperCase()
+  const selectedStateName = STATE_ABBR_TO_NAME[selectedStateAbbr] || ""
 
   if (query.length <= 2) {
     return NextResponse.json({ results: [] })
@@ -54,6 +110,19 @@ export async function GET(request: Request) {
 
       if ((props.countrycode || "").toLowerCase() !== "us") {
         continue
+      }
+
+      if (selectedStateAbbr) {
+        const featureStateName = (props.state || "").trim().toLowerCase()
+        const featureStateCode = (props.statecode || "").trim().toLowerCase()
+        const matchByName =
+          selectedStateName.length > 0 &&
+          featureStateName === selectedStateName.toLowerCase()
+        const matchByCode = featureStateCode === selectedStateAbbr.toLowerCase()
+
+        if (!matchByName && !matchByCode) {
+          continue
+        }
       }
 
       const num = props.housenumber || ""

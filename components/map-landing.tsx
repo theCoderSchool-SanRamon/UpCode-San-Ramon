@@ -39,6 +39,8 @@ export function MapLanding({ onConfirmLocation }: MapLandingProps) {
   const inputRef = useRef<HTMLInputElement>(null)
   const wrapperRef = useRef<HTMLDivElement>(null)
   const stateDropdownRef = useRef<HTMLDivElement>(null)
+  const suggestionListRef = useRef<HTMLUListElement>(null)
+  const suggestionItemRefs = useRef<Array<HTMLLIElement | null>>([])
 
   const filteredSuggestions = suggestions.filter((result) => {
     if (!selectedState) return true
@@ -81,8 +83,12 @@ export function MapLanding({ onConfirmLocation }: MapLandingProps) {
     const timeoutId = window.setTimeout(async () => {
       setIsLoadingSuggestions(true)
       try {
+        const params = new URLSearchParams({ q: trimmedQuery })
+        if (selectedState) {
+          params.set("state", selectedState)
+        }
         const response = await fetch(
-          `/api/autocomplete?q=${encodeURIComponent(trimmedQuery)}`,
+          `/api/autocomplete?${params.toString()}`,
           { signal: controller.signal }
         )
         const data = (await response.json()) as {
@@ -105,7 +111,15 @@ export function MapLanding({ onConfirmLocation }: MapLandingProps) {
       controller.abort()
       window.clearTimeout(timeoutId)
     }
-  }, [query])
+  }, [query, selectedState])
+
+  useEffect(() => {
+    if (highlightIndex < 0) return
+    suggestionItemRefs.current[highlightIndex]?.scrollIntoView({
+      block: "nearest",
+      behavior: "smooth",
+    })
+  }, [highlightIndex])
 
   function selectSuggestion(result: AutocompleteResult) {
     setQuery(result.display)
@@ -186,8 +200,9 @@ export function MapLanding({ onConfirmLocation }: MapLandingProps) {
 
           {showSuggestions && query.trim().length > 2 && (
             <ul
+              ref={suggestionListRef}
               role="listbox"
-              className="absolute left-0 right-0 z-20 mt-1 max-h-64 overflow-auto rounded-md border border-border bg-card shadow-lg"
+              className="absolute left-0 right-0 z-20 mt-1 max-h-72 overflow-y-auto overscroll-contain rounded-md border border-border bg-card shadow-lg"
             >
               {isLoadingSuggestions && (
                 <li className="px-3 py-2 text-sm text-muted-foreground">
@@ -203,6 +218,9 @@ export function MapLanding({ onConfirmLocation }: MapLandingProps) {
                 filteredSuggestions.map((result, index) => (
                   <li
                     key={`${result.display}-${result.lat}-${result.lon}`}
+                    ref={(el) => {
+                      suggestionItemRefs.current[index] = el
+                    }}
                     role="option"
                     aria-selected={highlightIndex === index}
                     className={cn(
@@ -304,7 +322,7 @@ export function MapLanding({ onConfirmLocation }: MapLandingProps) {
 
           {!selectedState && !confirmedLocation && (
             <p className="mt-6 max-w-md text-center text-sm leading-relaxed text-muted-foreground">
-              Select a state on the map or search for a specific city to begin evaluating market viability for a new franchise site.
+              Select a state on the map or search for a specific city
             </p>
           )}
         </div>
