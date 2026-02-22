@@ -280,7 +280,7 @@ export function MapLanding({ onConfirmLocation }: MapLandingProps) {
 
       <div className="flex flex-1 flex-col lg:flex-row">
         <div className="flex flex-1 flex-col items-center justify-center px-8 py-8">
-          <div className="w-full max-w-3xl">
+          <div className="w-full max-w-5xl overflow-hidden rounded-xl border border-border bg-card shadow-sm">
             <USMap
               selectedState={selectedState}
               onSelectState={handleStateSelect}

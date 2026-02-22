@@ -54,3 +54,19 @@
     text-wrap: balance;
   }
 }
+
+.us-leaflet-map {
+  background: linear-gradient(180deg, #eef3f8 0%, #e3ebf3 100%);
+}
+
+.leaflet-container {
+  font-family: inherit;
+}
+
+.leaflet-container img.leaflet-tile {
+  mix-blend-mode: initial;
+}
+
+.leaflet-control-attribution {
+  font-size: 10px;
+}
