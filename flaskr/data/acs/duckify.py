@@ -6,14 +6,13 @@ import csv
 import duckdb
 import os
 import time
+import re
 
+from itertools import batched
 from glob import glob
-from typing import Optional
 from warnings import warn
 from contextlib import closing
 from pathlib import Path
-from bitarray import bitarray
-from collections import Counter
 
 ROOT = Path(__file__).resolve().parent
 GEO_DENSE = [
@@ -25,41 +24,17 @@ GEO_SPARSE = [
     "CSA","PUMA5","BTBG","SDELM","AITS","MEMI","SDSEC","METDIV","SUBMCD","UR","CONCIT",
     "DIVISION","REGION","US","ANRC"
 ]
-THREADS = 8
-MEM_LIMIT = "4GB"
+
+THREADS = 1
+MEM_LIMIT = None
+BATCH_COLS = 20
 
 def fmt(s: float) -> str:
     return f"{s:.1f}s" if s < 60 else f"{int(s//60)}m{int(s%60)}s"
 
-def print_characteristics(path: str | Path) -> None:
-    with open(path) as f:
-        r = csv.reader(f, delimiter="|")
-        headers = next(r)
-
-        counter = Counter()
-
-        print(headers)
-
-        prev = None
-
-        def characterize(entry: list[str]) -> bitarray:
-            return bitarray(bool(s) for s in entry)
-        
-        for index, row in enumerate(r):
-            character = characterize(row)
-            counter[int(character.to01(), 2)] += 1
-            if (prev == character): continue
-
-            print(f"{index}: {'|'.join(row)}")
-            prev = character
-
-        print(str(counter))
-        for k, v in sorted({h: sum(v for k, v in counter.items()
-                      if (k >> (len(headers)-1-i)) & 1)
-                      for i, h in enumerate(headers)
-                      }.items(), key=lambda x:x[1], reverse=True):
-            print(k, v)
-
+def file_header(path: str) -> list[str]:
+    with open(path, newline="") as f:
+        return next(csv.reader(f, delimiter="|"))
 
 def main(geos: str, shells: str, dir: str):
     assert os.path.isfile(ROOT / geos)
@@ -67,10 +42,15 @@ def main(geos: str, shells: str, dir: str):
     assert os.path.isdir(ROOT / dir)
 
     with closing(duckdb.connect(ROOT / "acs.duckdb")) as con:
-        con.execute(f"PRAGMA threads={THREADS};")
+        con.execute(f"""--sql
+        PRAGMA threads={THREADS};
+        PRAGMA temp_directory='Z:/duckdb_temp.tmp/';
+        PRAGMA max_temp_directory_size='200GiB';
+        PRAGMA preserve_insertion_order=false;
+        """)
         if MEM_LIMIT: con.execute(f"PRAGMA memory_limit='{MEM_LIMIT}';")
 
-        #geography table
+        # ---------------- geo ----------------
         t0 = time.time()
         con.execute(f"""--sql
         DROP TABLE IF EXISTS geo;
@@ -91,19 +71,20 @@ def main(geos: str, shells: str, dir: str):
             place TEXT,
             cousub TEXT
         );
-        
+
         CREATE TABLE geo_attr (
             geokey INTEGER,
             key TEXT,
             value TEXT
         );
-        
+
         CREATE OR REPLACE TEMP VIEW geo_raw AS
         SELECT * FROM read_csv('{str(ROOT / geos)}', delim='|', header=true,
             quote='', escape='', nullstr='', all_varchar=true);
         """)
 
-        for col in set(GEO_DENSE + GEO_SPARSE) - {r[0] for r in con.execute("DESCRIBE geo_raw").fetchall()}:
+        got_geo = {r[0] for r in con.execute("DESCRIBE geo_raw").fetchall()}
+        for col in set(GEO_DENSE + GEO_SPARSE) - got_geo:
             warn(f"Missing column '{col}' in geos file")
 
         con.execute("""--sql
@@ -124,7 +105,7 @@ def main(geos: str, shells: str, dir: str):
             COUSUB AS cousub
         FROM geo_raw
         WHERE GEO_ID IS NOT NULL;
-                    
+
         CREATE OR REPLACE TABLE geo_map AS
         SELECT geoid, geokey FROM geo;
         """)
@@ -143,14 +124,14 @@ def main(geos: str, shells: str, dir: str):
         """)
         geo_n = con.execute("SELECT count(*) FROM geo").fetchone()[0]
         attr_n = con.execute("SELECT count(*) FROM geo_attr").fetchone()[0]
-        print(f"[geo] geo={geo_n} attr={attr_n} ({fmt(time.time()-t0)})")
+        print(f"[geo]  geo={geo_n}  attr={attr_n}  ({fmt(time.time()-t0)})")
 
-        #shell table
+        # ---------------- shell ----------------
         t0 = time.time()
         con.execute(f"""--sql
         DROP TABLE IF EXISTS shell;
         DROP TABLE IF EXISTS uid_map;
-        
+
         CREATE TABLE shell (
             uidkey INTEGER PRIMARY KEY,
             unique_id TEXT,
@@ -162,14 +143,15 @@ def main(geos: str, shells: str, dir: str):
             universe TEXT,
             type TEXT
         );
-        
+
         CREATE OR REPLACE TEMP VIEW shell_raw AS
         SELECT * FROM read_csv('{ROOT / shells}', delim='|', header=true,
             quote='', escape='', nullstr='', all_varchar=true);
         """)
-        
-        for col in set(["Table ID","Line","Indent","Unique ID","Label","Title","Universe","Type"]) \
-              - {r[0] for r in con.execute("DESCRIBE shell_raw").fetchall()}:
+
+        got_shell = {r[0] for r in con.execute("DESCRIBE shell_raw").fetchall()}
+        need = {"Table ID","Line","Indent","Unique ID","Label","Title","Universe","Type"}
+        for col in need - got_shell:
             warn(f"Missing column '{col}' in shells file")
 
         con.execute("""--sql
@@ -185,15 +167,16 @@ def main(geos: str, shells: str, dir: str):
             "Universe" AS universe,
             "Type" AS type
         FROM shell_raw;
-                    
+
         CREATE TABLE uid_map AS
         SELECT unique_id, uidkey FROM shell WHERE unique_id IS NOT NULL;
+
         CREATE INDEX shell_unique_id_idx ON shell(unique_id);
         """)
         shell_n = con.execute("SELECT count(*) FROM shell").fetchone()[0]
         print(f"[shell] rows={shell_n} ({fmt(time.time()-t0)})")
 
-        #fact table
+        # ---------------- fact ----------------
         t0 = time.time()
         con.execute("""--sql
         DROP TABLE IF EXISTS acs_value;
@@ -203,22 +186,38 @@ def main(geos: str, shells: str, dir: str):
         files = sorted(glob(str(ROOT / dir / "*.dat")))
         assert files
 
-        for i, file in enumerate(files):
+        total_expected = 0
+        for file in files:
+            headers = file_header(file)
+            if "GEO_ID" not in headers:
+                warn(f"GEO_ID missing from {file}")
+                continue
+
+            data_cols = headers[1:]
+            if not data_cols:
+                warn(f"No data cols in {file}")
+                continue
+
             con.execute(f"""--sql
             CREATE OR REPLACE TEMP VIEW t AS
             SELECT * FROM read_csv('{file}', delim='|', header=true,
-                quote='', escape='', nullstr='', all_varchar=true)
+                quote='', escape='', nullstr='', all_varchar=true);
             """)
-            cols = [r[0] for r in con.execute("DESCRIBE t").fetchall()]
-            if "GEO_ID" not in cols:
-                warn(f"GEO_ID missing from {file}")
-                continue
-            data = [col for col in cols if col != "GEO_ID"]
-            assert data
 
-            vals = ",\n".join([f"('{c}', \"{c}\")" for c in data])
+            geo_rows: int = con.execute("SELECT count(*) FROM t").fetchone()[0]
+            table = re.search(r"acsdt5y2024-([bc]\d{5}(?:\w?|pr)).dat",os.path.basename(file)).group(1).upper()
+            expected = geo_rows * (len(data_cols))
+            total_expected += expected
 
-            con.execute(f"""--sql
+            tf = time.time()
+            batches = list(batched(data_cols, BATCH_COLS))
+
+            print(f"{table}  starting  batches={len(batches)} geoxcol={geo_rows}x{len(data_cols)}")
+
+            for bi, cols in enumerate(batches, 1):
+                vals = ",\n".join([f"('{c}', \"{c}\")" for c in cols])
+                tb = time.time()
+                con.execute(f"""--sql
                 INSERT INTO acs_value
                 WITH u AS (
                     SELECT
@@ -230,7 +229,7 @@ def main(geos: str, shells: str, dir: str):
                         regexp_extract(v.col, '^.*_([EM])\\d+$', 1) AS kind
                     FROM t
                     CROSS JOIN (VALUES {vals}) AS v(col, val)
-                    WHERE v.col ~ '^(.*)_[EM]\\d+$'
+                    WHERE v.col ~ '^(.*)_[EM]\\d+$' AND v.val IS NOT NULL AND v.val <> ''
                 ),
                 joined AS (
                     SELECT gm.geokey, um.uidkey, kind, try_cast(val AS DOUBLE) AS dval
@@ -247,18 +246,23 @@ def main(geos: str, shells: str, dir: str):
                 )
                 SELECT * FROM agg
                 WHERE est IS NOT NULL OR moe IS NOT NULL;
-            """)
-
-            n = con.execute("SELECT count(*) FROM acs_value").fetchone()[0]
-            print(f"[fact] {i:03d}/{len(files)} row={n}")
+                """)
+                dtb = time.time() - tb
+                cells = geo_rows * len(cols)
+                print(f"{table}  batch={bi}/{len(batches)}  t={fmt(dtb)}  cells={cells:,}")
+            dt = time.time() - tf
+            rps = (expected / dt) if dt > 0 else 0.0
+            cells = geo_rows * len(data_cols)
+            print(f"{table}  done  batches={len(batches)}  {rps:,.0f} r/s  ({fmt(dt)})")
         
         con.execute("""--sql
+        CREATE TABLE acs_value_sorted AS SELECT * FROM acs_value ORDER BY geokey, uidkey;
+        DROP TABLE acs_value; ALTER TABLE acs_value_sorted RENAME TO acs_value;
         CREATE INDEX acs_value_gk_uid_idx ON acs_value(geokey, uidkey);
         ANALYZE;
         VACUUM;
         """)
-        print(f"[done] {ROOT / "acs.duckdb"} ({fmt(time.time()-t0)} fact stage)")
-        
+        print(f"[done] {ROOT / 'acs.duckdb'} ({fmt(time.time()-t0)} fact stage)")
 
 if __name__ == '__main__':
     main("Geos20245YR.txt", "ACS20245YR_Table_Shells.txt", "raw")
