@@ -310,13 +310,7 @@ export function MapLanding({ onConfirmLocation }: MapLandingProps) {
               Showing cities in{" "}
               <span className="font-medium text-foreground">
                 {selectedStateName}
-              </span>{" "}
-              &middot;{" "}
-              {
-                preselectedCities.filter((c) => c.state === selectedState)
-                  .length
-              }{" "}
-              pre-indexed
+              </span>
             </p>
           )}
 
