@@ -8,6 +8,8 @@ import os
 import time
 import re
 
+from tqdm import tqdm
+
 from itertools import batched
 from glob import glob
 from warnings import warn
@@ -25,9 +27,9 @@ GEO_SPARSE = [
     "DIVISION","REGION","US","ANRC"
 ]
 
-THREADS = 1
+THREADS = 4
 MEM_LIMIT = None
-BATCH_COLS = 20
+BATCH_COLS = 10
 
 def fmt(s: float) -> str:
     return f"{s:.1f}s" if s < 60 else f"{int(s//60)}m{int(s%60)}s"
@@ -36,12 +38,12 @@ def file_header(path: str) -> list[str]:
     with open(path, newline="") as f:
         return next(csv.reader(f, delimiter="|"))
 
-def main(geos: str, shells: str, dir: str):
+def main(geos: str, shells: str, dir: str, to: str):
     assert os.path.isfile(ROOT / geos)
     assert os.path.isfile(ROOT / shells)
     assert os.path.isdir(ROOT / dir)
 
-    with closing(duckdb.connect(ROOT / "acs.duckdb")) as con:
+    with closing(duckdb.connect(Path(to))) as con:
         con.execute(f"""--sql
         PRAGMA threads={THREADS};
         PRAGMA temp_directory='Z:/duckdb_temp.tmp/';
@@ -187,7 +189,7 @@ def main(geos: str, shells: str, dir: str):
         assert files
 
         total_expected = 0
-        for file in files:
+        for file_idx, file in enumerate(files, 1):
             headers = file_header(file)
             if "GEO_ID" not in headers:
                 warn(f"GEO_ID missing from {file}")
@@ -205,14 +207,14 @@ def main(geos: str, shells: str, dir: str):
             """)
 
             geo_rows: int = con.execute("SELECT count(*) FROM t").fetchone()[0]
-            table = re.search(r"acsdt5y2024-([bc]\d{5}(?:\w?|pr)).dat",os.path.basename(file)).group(1).upper()
+            table = re.search(r"acsdt5y2024-(.+).dat",os.path.basename(file)).group(1).upper()
             expected = geo_rows * (len(data_cols))
             total_expected += expected
 
             tf = time.time()
             batches = list(batched(data_cols, BATCH_COLS))
 
-            print(f"{table}  starting  batches={len(batches)} geoxcol={geo_rows}x{len(data_cols)}")
+            print(f"{file_idx:04}/{len(files)}  {table}  starting  batches={len(batches)} geoxcol={geo_rows}x{len(data_cols)}")
 
             for bi, cols in enumerate(batches, 1):
                 vals = ",\n".join([f"('{c}', \"{c}\")" for c in cols])
@@ -249,11 +251,11 @@ def main(geos: str, shells: str, dir: str):
                 """)
                 dtb = time.time() - tb
                 cells = geo_rows * len(cols)
-                print(f"{table}  batch={bi}/{len(batches)}  t={fmt(dtb)}  cells={cells:,}")
+                print(f"{file_idx:04}/{len(files)}  {table}  batch={bi}/{len(batches)}  t={fmt(dtb)}  cells={cells:,}")
             dt = time.time() - tf
             rps = (expected / dt) if dt > 0 else 0.0
             cells = geo_rows * len(data_cols)
-            print(f"{table}  done  batches={len(batches)}  {rps:,.0f} r/s  ({fmt(dt)})")
+            print(f"{file_idx:04}/{len(files)}  {table}  done  batches={len(batches)}  {rps:,.0f} r/s  ({fmt(dt)})")
         
         con.execute("""--sql
         CREATE TABLE acs_value_sorted AS SELECT * FROM acs_value ORDER BY geokey, uidkey;
@@ -265,4 +267,4 @@ def main(geos: str, shells: str, dir: str):
         print(f"[done] {ROOT / 'acs.duckdb'} ({fmt(time.time()-t0)} fact stage)")
 
 if __name__ == '__main__':
-    main("Geos20245YR.txt", "ACS20245YR_Table_Shells.txt", "raw")
+    main("Geos20245YR.txt", "ACS20245YR_Table_Shells.txt", "raw", "Z:/artifacts/acs.duckdb")
