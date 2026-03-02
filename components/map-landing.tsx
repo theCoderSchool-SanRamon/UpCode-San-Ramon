@@ -301,7 +301,7 @@ export function MapLanding({ onConfirmLocation }: MapLandingProps) {
           <div className="w-full max-w-5xl overflow-hidden rounded-xl border border-border bg-card shadow-sm">
             <USMap
               selectedState={selectedState}
-              onSelectState={handleStateSelect}
+              onStateClick={handleStateSelect}
             />
           </div>
 

@@ -1,32 +1,54 @@
 "use client"
 
 import { useState, useCallback } from "react"
-import { MapPin, Lock, Unlock, Play, ArrowLeft } from "lucide-react"
+import { Lock, Unlock, Play } from "lucide-react"
 import { priorities, presets, type Priority } from "@/lib/mock-data"
 import { Slider } from "@/components/ui/slider"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
-import type { SelectedLocation } from "@/components/map-landing"
+
+type Weights = {
+  wealth: number
+  family: number
+  education: number
+  competition: number
+  accessibility: number
+}
+
+type WeightKey = keyof Weights
 
 interface WeightState {
   value: number
   locked: boolean
 }
 
+type WeightMap = Record<WeightKey, WeightState>
+
 interface AnalysisConfigProps {
-  location: SelectedLocation
-  onBack: () => void
-  onRunAnalysis: (weights: Record<string, number>) => void
+  initialWeights: Weights
+  onContinue: (weights: Weights) => void
 }
 
-export function AnalysisConfig({ location, onBack, onRunAnalysis }: AnalysisConfigProps) {
-  const [weights, setWeights] = useState<Record<string, WeightState>>(() => {
-    const initial: Record<string, WeightState> = {}
-    for (const p of priorities) {
-      initial[p.id] = { value: p.defaultWeight, locked: false }
+export function AnalysisConfig({ initialWeights, onContinue }: AnalysisConfigProps) {
+  const [weights, setWeights] = useState<WeightMap>(() => {
+    const byId = Object.fromEntries(
+      priorities.map((priority) => [priority.id, priority.defaultWeight])
+    ) as Record<string, number>
+
+    return {
+      wealth: { value: initialWeights.wealth ?? byId.wealth ?? 0, locked: false },
+      family: { value: initialWeights.family ?? byId.family ?? 0, locked: false },
+      education: { value: initialWeights.education ?? byId.education ?? 0, locked: false },
+      competition: {
+        value: initialWeights.competition ?? byId.competition ?? 0,
+        locked: false,
+      },
+      accessibility: {
+        value: initialWeights.accessibility ?? byId.accessibility ?? 0,
+        locked: false,
+      },
     }
-    return initial
   })
   const [activePreset, setActivePreset] = useState<string>("default")
 
@@ -34,15 +56,16 @@ export function AnalysisConfig({ location, onBack, onRunAnalysis }: AnalysisConf
   const isBalanced = Math.abs(totalWeight - 1) < 0.005
 
   const redistributeWeights = useCallback(
-    (changedId: string, newValue: number, currentWeights: Record<string, WeightState>) => {
+    (changedId: WeightKey, newValue: number, currentWeights: WeightMap) => {
       const updated = { ...currentWeights }
       updated[changedId] = { ...updated[changedId], value: newValue }
+      const entries = Object.entries(updated) as [WeightKey, WeightState][]
 
-      const lockedTotal = Object.entries(updated)
+      const lockedTotal = entries
         .filter(([id, w]) => w.locked || id === changedId)
         .reduce((sum, [, w]) => sum + w.value, 0)
 
-      const unlocked = Object.entries(updated).filter(
+      const unlocked = entries.filter(
         ([id, w]) => !w.locked && id !== changedId
       )
 
@@ -61,13 +84,13 @@ export function AnalysisConfig({ location, onBack, onRunAnalysis }: AnalysisConf
     []
   )
 
-  function handleSliderChange(priorityId: string, values: number[]) {
+  function handleSliderChange(priorityId: WeightKey, values: number[]) {
     const newValue = values[0] / 100
     setWeights((prev) => redistributeWeights(priorityId, newValue, prev))
     setActivePreset("")
   }
 
-  function handleLockToggle(priorityId: string) {
+  function handleLockToggle(priorityId: WeightKey) {
     setWeights((prev) => ({
       ...prev,
       [priorityId]: { ...prev[priorityId], locked: !prev[priorityId].locked },
@@ -77,37 +100,30 @@ export function AnalysisConfig({ location, onBack, onRunAnalysis }: AnalysisConf
   function applyPreset(presetId: string) {
     const preset = presets.find((p) => p.id === presetId)
     if (!preset) return
-    const newWeights: Record<string, WeightState> = {}
-    for (const p of priorities) {
-      newWeights[p.id] = {
-        value: preset.weights[p.id] || 0,
-        locked: false,
-      }
-    }
-    setWeights(newWeights)
+    setWeights({
+      wealth: { value: preset.weights.wealth || 0, locked: false },
+      family: { value: preset.weights.family || 0, locked: false },
+      education: { value: preset.weights.education || 0, locked: false },
+      competition: { value: preset.weights.competition || 0, locked: false },
+      accessibility: { value: preset.weights.accessibility || 0, locked: false },
+    })
     setActivePreset(presetId)
   }
 
-  function handleRunAnalysis() {
-    const weightValues: Record<string, number> = {}
-    for (const [id, w] of Object.entries(weights)) {
-      weightValues[id] = Math.round(w.value * 100) / 100
-    }
-    onRunAnalysis(weightValues)
+  function handleContinue() {
+    onContinue({
+      wealth: Math.round(weights.wealth.value * 100) / 100,
+      family: Math.round(weights.family.value * 100) / 100,
+      education: Math.round(weights.education.value * 100) / 100,
+      competition: Math.round(weights.competition.value * 100) / 100,
+      accessibility: Math.round(weights.accessibility.value * 100) / 100,
+    })
   }
 
   return (
     <div className="flex min-h-screen flex-col lg:flex-row">
       <div className="flex flex-1 flex-col">
         <header className="flex items-center gap-4 border-b border-border bg-card px-6 py-3">
-          <button
-            onClick={onBack}
-            className="flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Back
-          </button>
-          <div className="h-5 w-px bg-border" />
           <div className="flex items-center gap-2">
             <span className="text-sm font-semibold tracking-tight text-foreground">
               theCoderSchool
@@ -117,18 +133,11 @@ export function AnalysisConfig({ location, onBack, onRunAnalysis }: AnalysisConf
 
         <div className="flex flex-1 flex-col items-center justify-center px-6 py-12">
           <div className="text-center">
-            <div className="inline-flex items-center gap-2 rounded-full border border-border bg-secondary px-4 py-1.5 text-xs font-medium text-secondary-foreground">
-              <MapPin className="h-3.5 w-3.5" />
-              Confirmed Location
-            </div>
             <h1 className="mt-4 text-balance text-3xl font-bold tracking-tight text-foreground md:text-4xl">
-              {location.fullName}
+              Set Your Preferences
             </h1>
-            <p className="mt-2 font-mono text-sm text-muted-foreground">
-              {location.lat.toFixed(4)}, {location.lng.toFixed(4)}
-            </p>
             <p className="mx-auto mt-6 max-w-md text-pretty text-sm leading-relaxed text-muted-foreground">
-              Configure the analysis weights in the sidebar, then run the analysis to generate scores for this location.
+              Configure analysis weights for each factor. Continue to select a state and fetch city recommendations.
             </p>
           </div>
         </div>
@@ -177,10 +186,12 @@ export function AnalysisConfig({ location, onBack, onRunAnalysis }: AnalysisConf
               <PrioritySlider
                 key={priority.id}
                 priority={priority}
-                value={weights[priority.id].value}
-                locked={weights[priority.id].locked}
-                onValueChange={(values) => handleSliderChange(priority.id, values)}
-                onLockToggle={() => handleLockToggle(priority.id)}
+                value={weights[priority.id as WeightKey].value}
+                locked={weights[priority.id as WeightKey].locked}
+                onValueChange={(values) =>
+                  handleSliderChange(priority.id as WeightKey, values)
+                }
+                onLockToggle={() => handleLockToggle(priority.id as WeightKey)}
               />
             ))}
           </div>
@@ -188,17 +199,17 @@ export function AnalysisConfig({ location, onBack, onRunAnalysis }: AnalysisConf
 
         <div className="mt-auto border-t border-border p-6">
           <Button
-            onClick={handleRunAnalysis}
+            onClick={handleContinue}
             disabled={!isBalanced}
             className="w-full gap-2"
             size="lg"
           >
             <Play className="h-4 w-4" />
-            Run Analysis
+            Continue
           </Button>
           {!isBalanced && (
             <p className="mt-2 text-center text-xs text-destructive">
-              Weights must sum to 100% before running analysis.
+              Weights must sum to 100% before continuing.
             </p>
           )}
         </div>

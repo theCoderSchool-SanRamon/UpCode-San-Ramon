@@ -92,20 +92,20 @@ function ensureLeafletStyles() {
 
 interface USMapProps {
   selectedState: string | null
-  onSelectState: (abbr: string) => void
+  onStateClick: (state: string) => void
 }
 
-export function USMap({ selectedState, onSelectState }: USMapProps) {
+export function USMap({ selectedState, onStateClick }: USMapProps) {
   const mapRef = useRef<HTMLDivElement>(null)
   const leafletMapRef = useRef<any>(null)
   const geoJsonLayerRef = useRef<any>(null)
-  const onSelectStateRef = useRef(onSelectState)
+  const onStateClickRef = useRef(onStateClick)
   const selectedStateRef = useRef<string | null>(selectedState)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    onSelectStateRef.current = onSelectState
-  }, [onSelectState])
+    onStateClickRef.current = onStateClick
+  }, [onStateClick])
 
   useEffect(() => {
     selectedStateRef.current = selectedState
@@ -177,7 +177,7 @@ export function USMap({ selectedState, onSelectState }: USMapProps) {
             const abbr = toAbbr(feature)
             if (!abbr) return
 
-            featureLayer.on("click", () => onSelectStateRef.current(abbr))
+            featureLayer.on("click", () => onStateClickRef.current(abbr))
             featureLayer.on("mouseover", () => {
               featureLayer.setStyle({ fillOpacity: 0.75 })
             })
