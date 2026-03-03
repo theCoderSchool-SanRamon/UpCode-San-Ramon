@@ -224,10 +224,10 @@ export function MapLanding({ onConfirmLocation }: MapLandingProps) {
                     role="option"
                     aria-selected={highlightIndex === index}
                     className={cn(
-                      "flex cursor-pointer items-center gap-3 px-3 py-2 text-sm text-foreground transition-colors",
+                      "flex cursor-pointer items-center gap-3 bg-white px-3 py-2 text-sm text-foreground transition-colors",
                       highlightIndex === index
-                        ? "bg-secondary"
-                        : "hover:bg-secondary/60"
+                        ? "bg-gray-100"
+                        : "hover:bg-gray-50"
                     )}
                     onMouseEnter={() => setHighlightIndex(index)}
                     onMouseDown={(e) => {
