@@ -53,10 +53,10 @@ export const presets: Preset[] = [
     description: "Balanced weighting across all factors",
     weights: {
       wealth: 0.30,
-      family: 0.25,
-      education: 0.1,
-      competition: 0.2,
-      accessibility: 0.15,
+      family: 0.30,
+      education: 0.15,
+      competition: 0.15,
+      accessibility: 0.1,
     },
   },
   {

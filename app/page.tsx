@@ -1,9 +1,9 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { ArrowLeft, MapPin, Search } from "lucide-react"
+import { MapPin, Search } from "lucide-react"
 import { AnalysisConfig } from "@/components/analysis-config"
-import { ResultsList, type CityResult } from "@/components/results-list"
+import { AnalysisScreen } from "@/components/analysis-screen"
 import { USMap } from "@/components/us-map"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
@@ -17,10 +17,6 @@ type Weights = {
   accessibility: number
 }
 
-type RecommendResponse = {
-  results?: CityResult[]
-}
-
 type AutocompleteResult = {
   display: string
   state: string
@@ -30,43 +26,18 @@ type AutocompleteResult = {
 
 const DEFAULT_WEIGHTS: Weights = {
   wealth: 0.3,
-  family: 0.25,
-  education: 0.1,
-  competition: 0.2,
-  accessibility: 0.15,
-}
-
-function isCityResult(value: unknown): value is CityResult {
-  if (!value || typeof value !== "object") return false
-
-  const candidate = value as Record<string, unknown>
-  return (
-    typeof candidate.city === "string" &&
-    typeof candidate.overallScore === "number" &&
-    typeof candidate.wealth === "number" &&
-    typeof candidate.family === "number" &&
-    typeof candidate.education === "number" &&
-    typeof candidate.competition === "number" &&
-    typeof candidate.accessibility === "number" &&
-    (typeof candidate.percentile === "number" || typeof candidate.percentile === "undefined")
-  )
-}
-
-function parseResults(payload: unknown): CityResult[] {
-  if (!payload || typeof payload !== "object") return []
-
-  const data = payload as RecommendResponse
-  if (!Array.isArray(data.results)) return []
-
-  return data.results.filter(isCityResult)
+  family: 0.3,
+  education: 0.15,
+  competition: 0.15,
+  accessibility: 0.1,
 }
 
 export default function HomePage() {
-  const [step, setStep] = useState<"config" | "map" | "results">("config")
+  const [step, setStep] = useState<"map" | "config" | "analysis">("map")
   const [weights, setWeights] = useState<Weights>(DEFAULT_WEIGHTS)
   const [selectedState, setSelectedState] = useState<string | null>(null)
-  const [results, setResults] = useState<CityResult[]>([])
-  const [loading, setLoading] = useState(false)
+  const [selectedCity, setSelectedCity] = useState<AutocompleteResult | null>(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [query, setQuery] = useState("")
   const [suggestions, setSuggestions] = useState<AutocompleteResult[]>([])
@@ -92,7 +63,7 @@ export default function HomePage() {
 
   useEffect(() => {
     const trimmedQuery = query.trim()
-    if (step !== "map" || trimmedQuery.length <= 2) {
+    if (step !== "map" || !selectedState || trimmedQuery.length <= 2) {
       setSuggestions([])
       setIsLoadingSuggestions(false)
       return
@@ -141,52 +112,59 @@ export default function HomePage() {
     })
   }, [highlightIndex])
 
-  function handleConfigContinue(nextWeights: Weights) {
-    setWeights(nextWeights)
-    setError(null)
-    setStep("map")
-  }
-
   function handleStateSelect(state: string) {
     setSelectedState(state)
+    setQuery("")
+    setSuggestions([])
+    setShowSuggestions(false)
+    setHighlightIndex(-1)
+    setSelectedCity((prev) => {
+      if (!prev) return null
+      const cityState = resolveStateAbbr(prev.state)
+      return cityState === state ? prev : null
+    })
     setError(null)
   }
 
-  async function handleViewTopPreferences() {
+  async function handleSubmitPreferences(nextWeights: Weights) {
     if (!selectedState) {
       setError("Select a state from the map or search results first.")
       return
     }
 
-    setLoading(true)
+    setWeights(nextWeights)
+    setIsSubmitting(true)
     setError(null)
 
     try {
-      const response = await fetch("/api/recommend", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          weights,
-          state: selectedState,
-        }),
-      })
-
-      if (!response.ok) {
-        throw new Error(`Request failed with status ${response.status}`)
-      }
-
-      const payload: unknown = await response.json()
-      const parsedResults = parseResults(payload)
-      setResults(parsedResults)
-      setStep("results")
+      await new Promise((resolve) => window.setTimeout(resolve, 700))
+      setStep("analysis")
     } catch (err) {
-      setResults([])
-      setError(err instanceof Error ? err.message : "Failed to fetch recommendations")
+      setError(err instanceof Error ? err.message : "Failed to submit preferences")
     } finally {
-      setLoading(false)
+      setIsSubmitting(false)
     }
+  }
+
+  function handleLocationContinue() {
+    if (!selectedState) {
+      setError("Select a state from the map or search results first.")
+      return
+    }
+
+    if (!selectedCity) {
+      setError("Select a valid city in the selected state.")
+      return
+    }
+
+    const cityState = resolveStateAbbr(selectedCity.state)
+    if (cityState !== selectedState) {
+      setError("Select a valid city in the selected state.")
+      return
+    }
+
+    setError(null)
+    setStep("config")
   }
 
   function resolveStateAbbr(stateValue: string): string | null {
@@ -215,22 +193,21 @@ export default function HomePage() {
     }
 
     handleStateSelect(stateAbbr)
+    setSelectedCity(suggestion)
   }
 
   function handleSearchSubmit() {
+    if (!selectedState) {
+      setError("Select a state first, then choose a city.")
+      return
+    }
+
     const firstSuggestion = suggestions[0]
     if (firstSuggestion) {
       handleSuggestionSelect(firstSuggestion)
       return
     }
-
-    const stateAbbr = resolveStateAbbr(query)
-    if (stateAbbr) {
-      handleStateSelect(stateAbbr)
-      return
-    }
-
-    setError("Select a suggestion or type a valid US state.")
+    setError("Select a valid city from search suggestions.")
   }
 
   function handleSearchKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
@@ -254,6 +231,11 @@ export default function HomePage() {
     if (event.key !== "Enter") return
     event.preventDefault()
 
+    if (!selectedState) {
+      setError("Select a state first, then choose a city.")
+      return
+    }
+
     if (highlightIndex >= 0 && highlightIndex < suggestions.length) {
       handleSuggestionSelect(suggestions[highlightIndex])
       return
@@ -266,23 +248,37 @@ export default function HomePage() {
     return (
       <AnalysisConfig
         initialWeights={weights}
-        onContinue={handleConfigContinue}
+        onContinue={handleSubmitPreferences}
+        onBack={() => {
+          setError(null)
+          setStep("map")
+        }}
+        continueLabel={isSubmitting ? "Submitting..." : "Submit"}
+        isSubmitting={isSubmitting}
+        errorMessage={error}
       />
     )
   }
 
-  if (step === "results") {
+  if (step === "analysis") {
     return (
-      <ResultsList
-        state={selectedState}
-        results={results}
-        onBack={() => {
+      <AnalysisScreen
+        selectedState={selectedState}
+        selectedCity={selectedCity?.display ?? null}
+        weights={weights}
+        onBackToPreferences={() => {
+          setError(null)
+          setStep("config")
+        }}
+        onBackToLocation={() => {
           setError(null)
           setStep("map")
         }}
       />
     )
   }
+
+  const selectedStateName = usStates.find((state) => state.abbr === selectedState)?.name
 
   return (
     <main className="min-h-screen bg-background px-6 py-8 md:px-10">
@@ -294,117 +290,130 @@ export default function HomePage() {
               Pick a state to get recommendations
             </h1>
           </div>
-          <Button onClick={() => setStep("config")} variant="outline" className="gap-2">
-            <ArrowLeft className="h-4 w-4" />
-            Back to Preferences
-          </Button>
         </header>
 
-        <div ref={searchWrapperRef} className="relative z-[1100] max-w-3xl">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <input
-            type="text"
-            value={query}
-            onChange={(event) => {
-              setQuery(event.target.value)
-              setShowSuggestions(true)
-              setHighlightIndex(-1)
-              setError(null)
-            }}
-            onFocus={() => {
-              if (query.trim().length > 2) {
-                setShowSuggestions(true)
-              }
-            }}
-            onKeyDown={handleSearchKeyDown}
-            placeholder="Search city, ZIP, or state"
-            className="h-10 w-full rounded-md border border-border bg-background pl-10 pr-24 text-sm text-foreground outline-none transition-shadow placeholder:text-muted-foreground focus:border-ring focus:ring-2 focus:ring-ring/20"
-            aria-label="Search locations"
-          />
-          <Button
-            onClick={handleSearchSubmit}
-            className="absolute right-1.5 top-1/2 h-7 -translate-y-1/2 px-3 text-xs"
-            disabled={loading || query.trim().length === 0}
-          >
-            Search
-          </Button>
+        <div className="flex flex-1 flex-col gap-6 lg:flex-row">
+          <div className="flex-1">
+            <div ref={searchWrapperRef} className="relative z-[1100]">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <input
+                type="text"
+                value={query}
+                onChange={(event) => {
+                  setQuery(event.target.value)
+                  setShowSuggestions(true)
+                  setHighlightIndex(-1)
+                  setSelectedCity(null)
+                  setError(null)
+                }}
+                onFocus={() => {
+                  if (selectedState && query.trim().length > 2) {
+                    setShowSuggestions(true)
+                  }
+                }}
+                onKeyDown={handleSearchKeyDown}
+                placeholder={
+                  selectedState
+                    ? `Search city in ${selectedState}`
+                    : "Select a state first to search cities"
+                }
+                className="h-10 w-full rounded-md border border-border bg-background pl-10 pr-4 text-sm text-foreground outline-none transition-shadow placeholder:text-muted-foreground focus:border-ring focus:ring-2 focus:ring-ring/20"
+                aria-label="Search locations"
+              />
 
-          {showSuggestions && query.trim().length > 2 && (
-            <ul className="absolute left-0 right-0 z-[1200] mt-1 max-h-72 overflow-y-auto overscroll-contain rounded-md border border-border bg-card shadow-lg">
-              {isLoadingSuggestions && (
-                <li className="px-3 py-2 text-sm text-muted-foreground">
-                  Searching...
-                </li>
+              {showSuggestions && selectedState && query.trim().length > 2 && (
+                <ul className="absolute left-0 right-0 z-[1200] mt-1 max-h-72 overflow-y-auto overscroll-contain rounded-md border border-border bg-card shadow-lg">
+                  {isLoadingSuggestions && (
+                    <li className="px-3 py-2 text-sm text-muted-foreground">
+                      Searching...
+                    </li>
+                  )}
+
+                  {!isLoadingSuggestions && suggestions.length === 0 && (
+                    <li className="px-3 py-2 text-sm text-muted-foreground">
+                      No matches found in {selectedState}
+                    </li>
+                  )}
+
+                  {!isLoadingSuggestions &&
+                    suggestions.map((suggestion, index) => (
+                      <li
+                        key={`${suggestion.display}-${suggestion.lat}-${suggestion.lon}`}
+                        ref={(element) => {
+                          suggestionItemRefs.current[index] = element
+                        }}
+                        className={cn(
+                          "flex cursor-pointer items-center gap-3 bg-white px-3 py-2 text-sm text-foreground transition-colors",
+                          highlightIndex === index
+                            ? "bg-gray-100"
+                            : "hover:bg-gray-50"
+                        )}
+                        onMouseEnter={() => setHighlightIndex(index)}
+                        onMouseDown={(event) => {
+                          event.preventDefault()
+                          handleSuggestionSelect(suggestion)
+                        }}
+                      >
+                        <MapPin className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                        <span className="min-w-0 flex-1 truncate font-medium">
+                          {suggestion.display}
+                        </span>
+                        <span className="font-mono text-[11px] text-muted-foreground">
+                          {suggestion.lat.toFixed(2)}, {suggestion.lon.toFixed(2)}
+                        </span>
+                      </li>
+                    ))}
+                </ul>
               )}
+            </div>
 
-              {!isLoadingSuggestions && suggestions.length === 0 && (
-                <li className="px-3 py-2 text-sm text-muted-foreground">
-                  No matches found
-                </li>
-              )}
+            <div className="mt-4 overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+              <USMap selectedState={selectedState} onStateClick={handleStateSelect} />
+            </div>
+          </div>
 
-              {!isLoadingSuggestions &&
-                suggestions.map((suggestion, index) => (
-                  <li
-                    key={`${suggestion.display}-${suggestion.lat}-${suggestion.lon}`}
-                    ref={(element) => {
-                      suggestionItemRefs.current[index] = element
-                    }}
-                    className={cn(
-                      "flex cursor-pointer items-center gap-3 bg-white px-3 py-2 text-sm text-foreground transition-colors",
-                      highlightIndex === index
-                        ? "bg-gray-100"
-                        : "hover:bg-gray-50"
-                    )}
-                    onMouseEnter={() => setHighlightIndex(index)}
-                    onMouseDown={(event) => {
-                      event.preventDefault()
-                      handleSuggestionSelect(suggestion)
-                    }}
-                  >
-                    <MapPin className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                    <span className="min-w-0 flex-1 truncate font-medium">
-                      {suggestion.display}
-                    </span>
-                    <span className="font-mono text-[11px] text-muted-foreground">
-                      {suggestion.lat.toFixed(2)}, {suggestion.lon.toFixed(2)}
-                    </span>
-                  </li>
-                ))}
-            </ul>
-          )}
+          <aside className="flex w-full flex-col rounded-xl border border-border bg-card p-6 lg:w-80">
+            <h2 className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
+              Target Location
+            </h2>
+            <div className="mt-4 rounded-md border border-border bg-background p-4 text-sm">
+              <p className="text-muted-foreground">State</p>
+              <p className="font-semibold text-foreground">
+                {selectedStateName ? `${selectedStateName} (${selectedState})` : "None"}
+              </p>
+              <p className="mt-3 text-muted-foreground">City</p>
+              <p className="font-semibold text-foreground">
+                {selectedCity?.display ?? "None"}
+              </p>
+              <p className="mt-3 font-mono text-xs text-muted-foreground">
+                {selectedCity
+                  ? `${selectedCity.lat.toFixed(4)}, ${selectedCity.lon.toFixed(4)}`
+                  : "Lat/Lng unavailable"}
+              </p>
+            </div>
+
+            {error && (
+              <div className="mt-4 rounded-md border border-destructive/30 bg-card px-3 py-2 text-sm text-destructive">
+                {error}
+              </div>
+            )}
+
+            <div className="mt-auto pt-6">
+              <Button
+                onClick={handleLocationContinue}
+                disabled={
+                  !selectedState ||
+                  !selectedCity ||
+                  resolveStateAbbr(selectedCity.state) !== selectedState
+                }
+                className="w-full"
+                size="lg"
+              >
+                Confirm Location
+              </Button>
+            </div>
+          </aside>
         </div>
-
-        {error && (
-          <div className="rounded-md border border-destructive/30 bg-card px-4 py-2 text-sm text-destructive">
-            {error}
-          </div>
-        )}
-
-        <div className="flex flex-col gap-3 rounded-md border border-border bg-card px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-sm text-muted-foreground">
-            Selected state:{" "}
-            <span className="font-semibold text-foreground">
-              {selectedState ?? "None"}
-            </span>
-          </p>
-          <Button
-            onClick={handleViewTopPreferences}
-            disabled={!selectedState || loading}
-          >
-            See Top Preferences
-          </Button>
-        </div>
-
-        {loading ? (
-          <div className="flex min-h-[55vh] items-center justify-center rounded-xl border border-border bg-card">
-            <div className="h-10 w-10 animate-spin rounded-full border-4 border-secondary border-t-primary" />
-          </div>
-        ) : (
-          <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
-            <USMap selectedState={selectedState} onStateClick={handleStateSelect} />
-          </div>
-        )}
       </div>
     </main>
   )

@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useCallback } from "react"
-import { Lock, Unlock, Play } from "lucide-react"
+import { ArrowLeft, Lock, Unlock, Play } from "lucide-react"
 import { priorities, presets, type Priority } from "@/lib/mock-data"
 import { Slider } from "@/components/ui/slider"
 import { Button } from "@/components/ui/button"
@@ -27,10 +27,21 @@ type WeightMap = Record<WeightKey, WeightState>
 
 interface AnalysisConfigProps {
   initialWeights: Weights
-  onContinue: (weights: Weights) => void
+  onContinue: (weights: Weights) => void | Promise<void>
+  onBack?: () => void
+  continueLabel?: string
+  isSubmitting?: boolean
+  errorMessage?: string | null
 }
 
-export function AnalysisConfig({ initialWeights, onContinue }: AnalysisConfigProps) {
+export function AnalysisConfig({
+  initialWeights,
+  onContinue,
+  onBack,
+  continueLabel = "Continue",
+  isSubmitting = false,
+  errorMessage = null,
+}: AnalysisConfigProps) {
   const [weights, setWeights] = useState<WeightMap>(() => {
     const byId = Object.fromEntries(
       priorities.map((priority) => [priority.id, priority.defaultWeight])
@@ -129,6 +140,12 @@ export function AnalysisConfig({ initialWeights, onContinue }: AnalysisConfigPro
               theCoderSchool
             </span>
           </div>
+          {onBack && (
+            <Button onClick={onBack} variant="outline" size="sm" className="ml-auto gap-1.5">
+              <ArrowLeft className="h-3.5 w-3.5" />
+              Back to Location
+            </Button>
+          )}
         </header>
 
         <div className="flex flex-1 flex-col items-center justify-center px-6 py-12">
@@ -200,16 +217,21 @@ export function AnalysisConfig({ initialWeights, onContinue }: AnalysisConfigPro
         <div className="mt-auto border-t border-border p-6">
           <Button
             onClick={handleContinue}
-            disabled={!isBalanced}
+            disabled={!isBalanced || isSubmitting}
             className="w-full gap-2"
             size="lg"
           >
             <Play className="h-4 w-4" />
-            Continue
+            {continueLabel}
           </Button>
           {!isBalanced && (
             <p className="mt-2 text-center text-xs text-destructive">
               Weights must sum to 100% before continuing.
+            </p>
+          )}
+          {errorMessage && (
+            <p className="mt-2 text-center text-xs text-destructive">
+              {errorMessage}
             </p>
           )}
         </div>
