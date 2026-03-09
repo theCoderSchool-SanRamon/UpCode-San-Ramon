@@ -126,16 +126,7 @@ export function AnalysisScreen({
         <header className="overflow-hidden rounded-2xl border border-slate-200 bg-card shadow-sm">
           <div className="grid gap-4 bg-[radial-gradient(circle_at_20%_20%,#dbeafe,transparent_50%),radial-gradient(circle_at_80%_0%,#dcfce7,transparent_45%)] p-5 md:grid-cols-[1.8fr_1fr]">
             <div>
-              <div className="flex flex-wrap gap-2">
-                <Badge variant="secondary" className="gap-1.5">
-                  <Compass className="h-3.5 w-3.5" />
-                  Analysis Prototype
-                </Badge>
-                <Badge variant="secondary" className="gap-1.5">
-                  <MapPin className="h-3.5 w-3.5" />
-                  {selectedState || "No state"}
-                </Badge>
-              </div>
+              
               <h1 className="mt-3 text-2xl font-bold tracking-tight text-foreground md:text-3xl">
                 Opportunity Ranking {selectedState ? `for ${selectedState}` : ""}
               </h1>
