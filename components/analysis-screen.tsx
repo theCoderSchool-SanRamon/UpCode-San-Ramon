@@ -121,10 +121,10 @@ export function AnalysisScreen({
   const gaugeOffset = gaugeCircumference - (estimatedMarketScore / 100) * gaugeCircumference
 
   return (
-    <main className="min-h-screen bg-gradient-to-b from-slate-100 via-background to-background px-6 py-8 md:px-10">
+    <main className="min-h-screen bg-background px-6 py-8 md:px-10">
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
         <header className="overflow-hidden rounded-2xl border border-slate-200 bg-card shadow-sm">
-          <div className="grid gap-4 bg-[radial-gradient(circle_at_20%_20%,#dbeafe,transparent_50%),radial-gradient(circle_at_80%_0%,#dcfce7,transparent_45%)] p-5 md:grid-cols-[1.8fr_1fr]">
+          <div className="grid gap-4 bg-slate-50 p-5 md:grid-cols-[1.8fr_1fr]">
             <div>
               
               <h1 className="mt-3 text-2xl font-bold tracking-tight text-foreground md:text-3xl">
@@ -213,7 +213,7 @@ export function AnalysisScreen({
 
                   <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-200">
                     <div
-                      className="h-full rounded-full bg-gradient-to-r from-blue-600 to-teal-500"
+                      className="h-full rounded-full bg-blue-600"
                       style={{ width: `${location.score}%` }}
                     />
                   </div>
@@ -310,11 +310,11 @@ export function AnalysisScreen({
               Applied Weights
             </h2>
             <div className="mt-4 space-y-3">
-              <WeightBar label="Wealth" value={weights.wealth} barClass="from-blue-600 to-blue-400" />
-              <WeightBar label="Family" value={weights.family} barClass="from-emerald-600 to-emerald-400" />
-              <WeightBar label="Education" value={weights.education} barClass="from-amber-600 to-amber-400" />
-              <WeightBar label="Competition" value={weights.competition} barClass="from-rose-600 to-rose-400" />
-              <WeightBar label="Accessibility" value={weights.accessibility} barClass="from-teal-600 to-teal-400" />
+              <WeightBar label="Wealth" value={weights.wealth} barClass="bg-blue-600" />
+              <WeightBar label="Family" value={weights.family} barClass="bg-emerald-600" />
+              <WeightBar label="Education" value={weights.education} barClass="bg-amber-600" />
+              <WeightBar label="Competition" value={weights.competition} barClass="bg-rose-600" />
+              <WeightBar label="Accessibility" value={weights.accessibility} barClass="bg-teal-600" />
             </div>
 
             <div className="mt-6 rounded-lg border border-primary/25 bg-primary/5 p-3 text-sm">
@@ -368,7 +368,7 @@ function WeightBar({
         <span className="font-mono text-foreground">{width}%</span>
       </div>
       <div className="h-2 overflow-hidden rounded-full bg-secondary">
-        <div className={cn("h-full rounded-full bg-gradient-to-r", barClass)} style={{ width: `${width}%` }} />
+        <div className={cn("h-full rounded-full", barClass)} style={{ width: `${width}%` }} />
       </div>
     </div>
   )
