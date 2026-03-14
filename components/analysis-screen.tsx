@@ -31,9 +31,20 @@ type CandidateLocation = {
   rationale: string
 }
 
+type SelectedCityType = {
+  display?: string
+  fullName?: string
+  name?: string
+  state?: string
+  lat?: number
+  lon?: number
+  lng?: number
+}
+
 interface AnalysisScreenProps {
   selectedState: string | null
   selectedCity: string | null
+  selectedCities?: SelectedCityType[]
   weights: Weights
   onBackToPreferences: () => void
   onBackToLocation: () => void
@@ -61,7 +72,7 @@ const SAMPLE_LOCATIONS: CandidateLocation[] = [
     score: 74,
     estimatedFamilies: "N/A",
     medianIncome: "N/A",
-    competition: "Medium",
+    competition: "High",
     rationale: "Placeholder rationale for third-ranked area.",
   },
 ]
@@ -103,6 +114,7 @@ function polygonAtRadius(points: number, radius: number, cx: number, cy: number)
 export function AnalysisScreen({
   selectedState,
   selectedCity,
+  selectedCities,
   weights,
   onBackToPreferences,
   onBackToLocation,
@@ -120,18 +132,38 @@ export function AnalysisScreen({
   const gaugeCircumference = 2 * Math.PI * 42
   const gaugeOffset = gaugeCircumference - (estimatedMarketScore / 100) * gaugeCircumference
 
+  // Dynamically generate candidate locations based on passed selected cities
+  const candidateLocations: CandidateLocation[] =
+    selectedCities && selectedCities.length > 0
+      ? selectedCities
+          .map((city, index) => {
+            const cityName = city.display || city.fullName || city.name || `Location #${index + 1}`
+            const mockScore = 95 - index * 7
+            const comps = ["N/A", "N/A", "N/A", "N/A", "N/A"] as const
+
+            return {
+              name: cityName,
+              score: mockScore,
+              estimatedFamilies: "N/A",
+              medianIncome: "N/A",
+              competition: comps[index % 5],
+              rationale: `Simulated analysis for ${cityName} based on your designated priority weights.`,
+            }
+          })
+          .sort((a, b) => b.score - a.score) // Sort descending by score
+      : SAMPLE_LOCATIONS
+
   return (
     <main className="min-h-screen bg-background px-6 py-8 md:px-10">
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
         <header className="overflow-hidden rounded-2xl border border-slate-200 bg-card shadow-sm">
           <div className="grid gap-4 bg-slate-50 p-5 md:grid-cols-[1.8fr_1fr]">
             <div>
-              
               <h1 className="mt-3 text-2xl font-bold tracking-tight text-foreground md:text-3xl">
-                Opportunity Ranking {selectedState ? `for ${selectedState}` : ""}
+                Location Rankings
               </h1>
               <p className="mt-2 text-sm text-muted-foreground">
-                Based on your preferences{selectedCity ? ` around ${selectedCity}` : ""}.
+                Based on your preferences.
               </p>
 
               <div className="mt-4 flex flex-wrap gap-2">
@@ -178,7 +210,11 @@ export function AnalysisScreen({
 
         <section className="grid gap-4 md:grid-cols-3">
           <MetricCard label="Market Fit Score" value={`/100`} icon={Gauge} />
-          <MetricCard label="Best Candidate" value={SAMPLE_LOCATIONS[0].name} icon={Building2} />
+          <MetricCard 
+            label="Best Candidate" 
+            value={candidateLocations[0]?.name || "N/A"} 
+            icon={Building2} 
+          />
           <MetricCard
             label="Primary Driver"
             value={primaryWeight ? `${primaryWeight[0]} (${percent(primaryWeight[1])}%)` : "N/A"}
@@ -192,7 +228,7 @@ export function AnalysisScreen({
               Ranked Areas
             </h2>
             <div className="mt-4 space-y-4">
-              {SAMPLE_LOCATIONS.map((location, index) => (
+              {candidateLocations.map((location, index) => (
                 <article
                   key={location.name}
                   className="rounded-xl border border-border bg-background p-4"
@@ -303,26 +339,6 @@ export function AnalysisScreen({
                   </div>
                 ))}
               </div>
-            </div>
-
-            <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
-            <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-              Applied Weights
-            </h2>
-            <div className="mt-4 space-y-3">
-              <WeightBar label="Wealth" value={weights.wealth} barClass="bg-blue-600" />
-              <WeightBar label="Family" value={weights.family} barClass="bg-emerald-600" />
-              <WeightBar label="Education" value={weights.education} barClass="bg-amber-600" />
-              <WeightBar label="Competition" value={weights.competition} barClass="bg-rose-600" />
-              <WeightBar label="Accessibility" value={weights.accessibility} barClass="bg-teal-600" />
-            </div>
-
-            <div className="mt-6 rounded-lg border border-primary/25 bg-primary/5 p-3 text-sm">
-              <p className="font-semibold text-foreground">Suggested Next Step</p>
-              <p className="mt-1 text-muted-foreground">
-                Validate the top 2 areas with local lease cost and 5-mile traffic data before finalizing.
-              </p>
-            </div>
             </div>
           </aside>
         </section>

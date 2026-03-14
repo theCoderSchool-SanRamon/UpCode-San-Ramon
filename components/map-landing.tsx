@@ -1,8 +1,8 @@
 "use client"
 
 import { useState, useRef, useEffect } from "react"
-import { Search, MapPin, ChevronDown, Target } from "lucide-react"
-import { usStates, preselectedCities } from "@/lib/mock-data"
+import { Search, MapPin, ChevronDown, Plus, X } from "lucide-react"
+import { usStates } from "@/lib/mock-data"
 import { USMap } from "@/components/us-map"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -16,7 +16,7 @@ export interface SelectedLocation {
 }
 
 interface MapLandingProps {
-  onConfirmLocation: (location: SelectedLocation) => void
+  onConfirmLocation: (locations: SelectedLocation[]) => void
 }
 
 interface AutocompleteResult {
@@ -33,8 +33,8 @@ export function MapLanding({ onConfirmLocation }: MapLandingProps) {
   const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false)
   const [showSuggestions, setShowSuggestions] = useState(false)
   const [highlightIndex, setHighlightIndex] = useState(-1)
-  const [confirmedLocation, setConfirmedLocation] =
-    useState<SelectedLocation | null>(null)
+  const [confirmedLocation, setConfirmedLocation] = useState<SelectedLocation | null>(null)
+  const [locations, setLocations] = useState<SelectedLocation[]>([])
   const [showStateDropdown, setShowStateDropdown] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
   const wrapperRef = useRef<HTMLDivElement>(null)
@@ -132,6 +132,16 @@ export function MapLanding({ onConfirmLocation }: MapLandingProps) {
       lng: result.lon,
     })
     setShowSuggestions(false)
+  }
+
+  function handleAddLocation() {
+    if (!confirmedLocation) return
+    if (locations.length >= 5) return
+    if (locations.some((loc) => loc.fullName === confirmedLocation.fullName)) return
+
+    setLocations((prev) => [...prev, confirmedLocation])
+    setConfirmedLocation(null)
+    setQuery("")
   }
 
   function handleKeyDown(e: React.KeyboardEvent) {
@@ -348,18 +358,55 @@ export function MapLanding({ onConfirmLocation }: MapLandingProps) {
             </div>
           )}
 
+          <Button
+            variant="outline"
+            className="mt-4 w-full gap-2"
+            disabled={!confirmedLocation || locations.length >= 5}
+            onClick={handleAddLocation}
+          >
+            <Plus className="h-4 w-4" /> Add Location
+          </Button>
+
+          {locations.length > 0 && (
+            <div className="mt-6 flex flex-col gap-2">
+              <div className="flex items-center justify-between">
+                <h3 className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
+                  Added Locations ({locations.length}/5)
+                </h3>
+              </div>
+              {locations.map((loc, idx) => (
+                <div key={`${loc.fullName}-${idx}`} className="group relative rounded-md border border-border bg-background p-3 transition-colors hover:border-destructive/50">
+                  <div className="pr-6">
+                    <p className="truncate text-sm font-semibold text-foreground" title={loc.fullName}>
+                      {loc.fullName}
+                    </p>
+                    <p className="mt-1 font-mono text-[10px] text-muted-foreground">
+                      {loc.lat.toFixed(4)}, {loc.lng.toFixed(4)}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setLocations((prev) => prev.filter((_, i) => i !== idx))}
+                    className="absolute right-3 top-3 text-muted-foreground opacity-50 transition-opacity hover:text-destructive group-hover:opacity-100"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
           <div className="mt-auto pt-6">
             <Button
               onClick={() => {
-                if (confirmedLocation) {
-                  onConfirmLocation(confirmedLocation)
+                if (locations.length > 0) {
+                  onConfirmLocation(locations)
                 }
               }}
-              disabled={!confirmedLocation}
+              disabled={locations.length === 0}
               className="w-full"
               size="lg"
             >
-              Confirm Location
+              Confirm Locations
             </Button>
           </div>
         </aside>

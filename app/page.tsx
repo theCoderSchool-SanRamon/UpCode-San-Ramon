@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { MapPin, Search } from "lucide-react"
+import { MapPin, Search, Plus, X } from "lucide-react"
 import { AnalysisConfig } from "@/components/analysis-config"
 import { AnalysisScreen } from "@/components/analysis-screen"
 import { USMap } from "@/components/us-map"
@@ -37,6 +37,7 @@ export default function HomePage() {
   const [weights, setWeights] = useState<Weights>(DEFAULT_WEIGHTS)
   const [selectedState, setSelectedState] = useState<string | null>(null)
   const [selectedCity, setSelectedCity] = useState<AutocompleteResult | null>(null)
+  const [locations, setLocations] = useState<AutocompleteResult[]>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [query, setQuery] = useState("")
@@ -126,9 +127,28 @@ export default function HomePage() {
     setError(null)
   }
 
+  function handleAddLocation() {
+    if (!selectedCity) return
+    
+    if (locations.length >= 5) {
+      setError("You can only add up to 5 locations.")
+      return
+    }
+
+    if (locations.some((loc) => loc.display === selectedCity.display)) {
+      setError("Location already added.")
+      return
+    }
+
+    setLocations((prev) => [...prev, selectedCity])
+    setSelectedCity(null)
+    setQuery("")
+    setError(null)
+  }
+
   async function handleSubmitPreferences(nextWeights: Weights) {
-    if (!selectedState) {
-      setError("Select a state from the map or search results first.")
+    if (locations.length === 0) {
+      setError("Select at least one city first.")
       return
     }
 
@@ -147,19 +167,8 @@ export default function HomePage() {
   }
 
   function handleLocationContinue() {
-    if (!selectedState) {
-      setError("Select a state from the map or search results first.")
-      return
-    }
-
-    if (!selectedCity) {
-      setError("Select a valid city in the selected state.")
-      return
-    }
-
-    const cityState = resolveStateAbbr(selectedCity.state)
-    if (cityState !== selectedState) {
-      setError("Select a valid city in the selected state.")
+    if (locations.length === 0) {
+      setError("Select at least one city to continue.")
       return
     }
 
@@ -194,6 +203,7 @@ export default function HomePage() {
 
     handleStateSelect(stateAbbr)
     setSelectedCity(suggestion)
+    setError(null)
   }
 
   function handleSearchSubmit() {
@@ -263,8 +273,10 @@ export default function HomePage() {
   if (step === "analysis") {
     return (
       <AnalysisScreen
-        selectedState={selectedState}
-        selectedCity={selectedCity?.display ?? null}
+        selectedState={locations[0] ? resolveStateAbbr(locations[0].state) : selectedState}
+        selectedCity={locations[0]?.display ?? null}
+        // @ts-ignore - allowing array expansion for updated screens
+        selectedCities={locations}
         weights={weights}
         onBackToPreferences={() => {
           setError(null)
@@ -287,7 +299,7 @@ export default function HomePage() {
           <div>
             <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">State Selection</p>
             <h1 className="mt-1 text-2xl font-bold tracking-tight text-foreground md:text-3xl">
-              Pick a state to get recommendations
+              Pick locations to get recommendations
             </h1>
           </div>
         </header>
@@ -392,6 +404,49 @@ export default function HomePage() {
               </p>
             </div>
 
+            <Button
+              variant="outline"
+              className="mt-4 w-full gap-2"
+              disabled={
+                !selectedCity ||
+                resolveStateAbbr(selectedCity.state) !== selectedState ||
+                locations.length >= 5
+              }
+              onClick={handleAddLocation}
+            >
+              <Plus className="h-4 w-4" />
+              Add Location
+            </Button>
+
+            {locations.length > 0 && (
+              <div className="mt-6 flex flex-col gap-2">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
+                    Added Locations ({locations.length}/5)
+                  </h3>
+                </div>
+                {locations.map((loc, idx) => (
+                  <div key={`${loc.display}-${idx}`} className="group relative flex items-start justify-between rounded-md border border-border bg-background p-3 text-sm transition-colors hover:border-destructive/50">
+                    <div className="min-w-0 pr-6">
+                      <p className="truncate font-semibold text-foreground" title={loc.display}>
+                        {loc.display}
+                      </p>
+                      <p className="mt-0.5 font-mono text-[10px] text-muted-foreground">
+                        {loc.lat.toFixed(4)}, {loc.lon.toFixed(4)}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => setLocations((prev) => prev.filter((_, i) => i !== idx))}
+                      className="absolute right-3 top-3 text-muted-foreground opacity-50 transition-opacity hover:text-destructive group-hover:opacity-100"
+                      aria-label="Remove city"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
             {error && (
               <div className="mt-4 rounded-md border border-destructive/30 bg-card px-3 py-2 text-sm text-destructive">
                 {error}
@@ -401,15 +456,11 @@ export default function HomePage() {
             <div className="mt-auto pt-6">
               <Button
                 onClick={handleLocationContinue}
-                disabled={
-                  !selectedState ||
-                  !selectedCity ||
-                  resolveStateAbbr(selectedCity.state) !== selectedState
-                }
+                disabled={locations.length === 0}
                 className="w-full"
                 size="lg"
               >
-                Confirm Location
+                Confirm Locations
               </Button>
             </div>
           </aside>
