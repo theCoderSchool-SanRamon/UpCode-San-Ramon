@@ -410,7 +410,7 @@ export default function HomePage() {
               <p className="font-semibold text-foreground">
                 {selectedStateName ? `${selectedStateName} (${selectedState})` : "None"}
               </p>
-              <p className="mt-3 text-muted-foreground">City</p>
+              <p className="mt-3 text-muted-foreground">Address</p>
               <p className="font-semibold text-foreground">
                 {selectedCity?.display ?? "None"}
               </p>

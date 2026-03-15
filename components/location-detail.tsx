@@ -14,7 +14,12 @@ export function LocationDetailScreen({ location, weights, onBack }: LocationDeta
   return (
     <main className="min-h-screen bg-background px-6 py-8 md:px-10">
       <div className="mx-auto flex w-full max-w-4xl flex-col gap-6">
-        <Button variant="ghost" size="sm" onClick={onBack} className="w-fit gap-2 pl-0 hover:bg-transparent hover:text-primary text-muted-foreground">
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          onClick={onBack} 
+          className="w-fit gap-2 pl-0 hover:bg-transparent hover:text-primary text-muted-foreground transition-colors"
+        >
           <ArrowLeft className="h-4 w-4" />
           Back to Rankings
         </Button>
@@ -62,7 +67,7 @@ export function LocationDetailScreen({ location, weights, onBack }: LocationDeta
                 return (
                   <div key={item.key} className="grid grid-cols-4 items-center p-4 text-sm transition-colors hover:bg-muted/20">
                     <div className="col-span-1 font-medium text-foreground flex items-center gap-2">
-                      <span className="w-2 h-2 rounded-full" style={{ backgroundColor: item.color }} />
+                      <span className="w-2 h-2 rounded-full bg-primary" />
                       {item.label}
                     </div>
                     <div className="col-span-1 text-center font-mono text-muted-foreground">

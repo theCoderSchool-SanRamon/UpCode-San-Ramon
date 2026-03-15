@@ -157,10 +157,10 @@ export function AnalysisScreen({
           <div className="grid gap-4 bg-slate-50 p-5 md:grid-cols-[1.8fr_1fr]">
             <div>
               <h1 className="mt-3 text-2xl font-bold tracking-tight text-foreground md:text-3xl">
-                Opportunity Ranking {selectedState ? `for ${selectedState}` : ""}
+                Opportunity Rankings
               </h1>
               <p className="mt-2 text-sm text-muted-foreground">
-                Based on your preferences. Select an area below to view its score breakdown.
+                Select an area below to view its score breakdown based on your preferences.
               </p>
 
               <div className="mt-4 flex flex-wrap gap-2">
@@ -342,25 +342,7 @@ export function AnalysisScreen({
               </div>
             </div>
 
-            <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
-              <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-                Applied Weights
-              </h2>
-              <div className="mt-4 space-y-3">
-                <WeightBar label="Wealth" value={weights.wealth} barClass="bg-primary" />
-                <WeightBar label="Family" value={weights.family} barClass="bg-primary" />
-                <WeightBar label="Education" value={weights.education} barClass="bg-primary" />
-                <WeightBar label="Competition" value={weights.competition} barClass="bg-primary" />
-                <WeightBar label="Accessibility" value={weights.accessibility} barClass="bg-primary" />
-              </div>
-
-              <div className="mt-6 rounded-lg border border-primary/25 bg-primary/5 p-3 text-sm">
-                <p className="font-semibold text-primary">Suggested Next Step</p>
-                <p className="mt-1 text-muted-foreground">
-                  Validate the top 2 areas with local lease cost and 5-mile traffic data before finalizing.
-                </p>
-              </div>
-            </div>
+           
           </aside>
         </section>
       </div>

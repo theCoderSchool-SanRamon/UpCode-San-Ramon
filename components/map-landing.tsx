@@ -178,7 +178,7 @@ export function MapLanding({ onConfirmLocation }: MapLandingProps) {
       <header className="flex items-center gap-4 border-b border-border bg-card px-6 py-3">
         <div className="flex items-center gap-2.5">
           <div className="flex flex-col">
-            <span className="text-sm font-semibold leading-none tracking-tight text-foreground">
+            <span className="text-sm font-semibold leading-none tracking-tight text-black">
               theCoderSchool
             </span>
           </div>
@@ -187,7 +187,7 @@ export function MapLanding({ onConfirmLocation }: MapLandingProps) {
         <div className="mx-4 hidden h-5 w-px bg-border lg:block" />
 
         <div ref={wrapperRef} className="relative ml-auto flex-1 max-w-xl lg:ml-0">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-600" />
           <input
             ref={inputRef}
             type="text"
@@ -201,7 +201,7 @@ export function MapLanding({ onConfirmLocation }: MapLandingProps) {
             onFocus={() => setShowSuggestions(true)}
             onKeyDown={handleKeyDown}
             placeholder="Search by city, ZIP code, or address"
-            className="h-9 w-full rounded-md border border-border bg-background pl-10 pr-4 text-sm text-foreground outline-none transition-shadow placeholder:text-muted-foreground focus:border-ring focus:ring-2 focus:ring-ring/20"
+            className="h-9 w-full rounded-md border border-border bg-background pl-10 pr-4 text-sm text-black outline-none transition-shadow placeholder:text-gray-600 focus:border-ring focus:ring-2 focus:ring-ring/20"
             aria-label="Search locations"
             role="combobox"
             aria-expanded={showSuggestions}
@@ -215,12 +215,12 @@ export function MapLanding({ onConfirmLocation }: MapLandingProps) {
               className="absolute left-0 right-0 z-20 mt-1 max-h-72 overflow-y-auto overscroll-contain rounded-md border border-border bg-card shadow-lg"
             >
               {isLoadingSuggestions && (
-                <li className="px-3 py-2 text-sm text-muted-foreground">
+                <li className="px-3 py-2 text-sm text-gray-600">
                   Searching...
                 </li>
               )}
               {!isLoadingSuggestions && filteredSuggestions.length === 0 && (
-                <li className="px-3 py-2 text-sm text-muted-foreground">
+                <li className="px-3 py-2 text-sm text-gray-600">
                   No matches found
                 </li>
               )}
@@ -234,7 +234,7 @@ export function MapLanding({ onConfirmLocation }: MapLandingProps) {
                     role="option"
                     aria-selected={highlightIndex === index}
                     className={cn(
-                      "flex cursor-pointer items-center gap-3 bg-white px-3 py-2 text-sm text-foreground transition-colors",
+                      "flex cursor-pointer items-center gap-3 bg-white px-3 py-2 text-sm text-black transition-colors",
                       highlightIndex === index
                         ? "bg-gray-100"
                         : "hover:bg-gray-50"
@@ -245,13 +245,13 @@ export function MapLanding({ onConfirmLocation }: MapLandingProps) {
                       selectSuggestion(result)
                     }}
                   >
-                    <MapPin className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                    <MapPin className="h-3.5 w-3.5 shrink-0 text-gray-600" />
                     <div className="min-w-0 flex-1">
                       <span className="block truncate font-medium">
                         {result.display}
                       </span>
                     </div>
-                    <span className="ml-auto font-mono text-[11px] text-muted-foreground">
+                    <span className="ml-auto font-mono text-[11px] text-gray-600">
                       {result.lat.toFixed(2)}, {result.lon.toFixed(2)}
                     </span>
                   </li>
@@ -263,10 +263,10 @@ export function MapLanding({ onConfirmLocation }: MapLandingProps) {
         <div ref={stateDropdownRef} className="relative">
           <button
             onClick={() => setShowStateDropdown(!showStateDropdown)}
-            className="flex h-9 items-center gap-2 rounded-md border border-border bg-background px-3 text-sm text-foreground transition-colors hover:bg-secondary"
+            className="flex h-9 items-center gap-2 rounded-md border border-border bg-background px-3 text-sm text-black transition-colors hover:bg-secondary"
           >
             {selectedStateName || "All states"}
-            <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+            <ChevronDown className="h-3.5 w-3.5 text-gray-600" />
           </button>
           {showStateDropdown && (
             <div className="absolute right-0 z-20 mt-1 max-h-64 w-48 overflow-auto rounded-md border border-border bg-card shadow-lg">
@@ -278,8 +278,8 @@ export function MapLanding({ onConfirmLocation }: MapLandingProps) {
                 className={cn(
                   "w-full px-3 py-2 text-left text-sm transition-colors hover:bg-secondary",
                   !selectedState
-                    ? "bg-secondary font-medium text-foreground"
-                    : "text-muted-foreground"
+                    ? "bg-secondary font-medium text-black"
+                    : "text-gray-600"
                 )}
               >
                 All states
@@ -294,8 +294,8 @@ export function MapLanding({ onConfirmLocation }: MapLandingProps) {
                   className={cn(
                     "w-full px-3 py-2 text-left text-sm transition-colors hover:bg-secondary",
                     selectedState === state.abbr
-                      ? "bg-secondary font-medium text-foreground"
-                      : "text-foreground"
+                      ? "bg-secondary font-medium text-black"
+                      : "text-black"
                   )}
                 >
                   {state.name} ({state.abbr})
@@ -316,43 +316,43 @@ export function MapLanding({ onConfirmLocation }: MapLandingProps) {
           </div>
 
           {selectedState && (
-            <p className="mt-4 text-sm text-muted-foreground">
+            <p className="mt-4 text-sm text-gray-600">
               Showing cities in{" "}
-              <span className="font-medium text-foreground">
+              <span className="font-medium text-black">
                 {selectedStateName}
               </span>
             </p>
           )}
 
           {!selectedState && !confirmedLocation && (
-            <p className="mt-6 max-w-md text-center text-sm leading-relaxed text-muted-foreground">
+            <p className="mt-6 max-w-md text-center text-sm leading-relaxed text-gray-600">
               Select a state on the map or search for a specific city
             </p>
           )}
         </div>
 
         <aside className="flex w-full flex-col border-t border-border bg-card p-6 lg:w-80 lg:border-l lg:border-t-0">
-          <h2 className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
+          <h2 className="text-[11px] font-semibold uppercase tracking-widest text-gray-600">
             Target Location
           </h2>
 
           {confirmedLocation ? (
             <div className="mt-4 rounded-md border border-border bg-background p-4">
-              <p className="text-base font-semibold text-foreground">
+              <p className="text-base font-semibold text-black">
                 {confirmedLocation.fullName}
               </p>
-              <p className="mt-1 font-mono text-xs text-muted-foreground">
+              <p className="mt-1 font-mono text-xs text-gray-600">
                 {confirmedLocation.lat.toFixed(4)},{" "}
                 {confirmedLocation.lng.toFixed(4)}
               </p>
             </div>
           ) : (
             <div className="mt-4 flex flex-col items-center justify-center rounded-md border border-dashed border-border bg-background p-8 text-center">
-              <MapPin className="h-8 w-8 text-muted-foreground/30" />
-              <p className="mt-3 text-sm text-muted-foreground">
+              <MapPin className="h-8 w-8 text-gray-600/30" />
+              <p className="mt-3 text-sm text-gray-600">
                 No location selected
               </p>
-              <p className="mt-1 text-xs text-muted-foreground/70">
+              <p className="mt-1 text-xs text-gray-600/70">
                 Search or click the map to begin
               </p>
             </div>
@@ -360,7 +360,7 @@ export function MapLanding({ onConfirmLocation }: MapLandingProps) {
 
           <Button
             variant="outline"
-            className="mt-4 w-full gap-2"
+            className="mt-4 w-full gap-2 text-black"
             disabled={!confirmedLocation || locations.length >= 5}
             onClick={handleAddLocation}
           >
@@ -370,23 +370,23 @@ export function MapLanding({ onConfirmLocation }: MapLandingProps) {
           {locations.length > 0 && (
             <div className="mt-6 flex flex-col gap-2">
               <div className="flex items-center justify-between">
-                <h3 className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
+                <h3 className="text-[11px] font-semibold uppercase tracking-widest text-gray-600">
                   Added Locations ({locations.length}/5)
                 </h3>
               </div>
               {locations.map((loc, idx) => (
                 <div key={`${loc.fullName}-${idx}`} className="group relative rounded-md border border-border bg-background p-3 transition-colors hover:border-destructive/50">
                   <div className="pr-6">
-                    <p className="truncate text-sm font-semibold text-foreground" title={loc.fullName}>
+                    <p className="truncate text-sm font-semibold text-black" title={loc.fullName}>
                       {loc.fullName}
                     </p>
-                    <p className="mt-1 font-mono text-[10px] text-muted-foreground">
+                    <p className="mt-1 font-mono text-[10px] text-gray-600">
                       {loc.lat.toFixed(4)}, {loc.lng.toFixed(4)}
                     </p>
                   </div>
                   <button
                     onClick={() => setLocations((prev) => prev.filter((_, i) => i !== idx))}
-                    className="absolute right-3 top-3 text-muted-foreground opacity-50 transition-opacity hover:text-destructive group-hover:opacity-100"
+                    className="absolute right-3 top-3 text-gray-600 opacity-50 transition-opacity hover:text-destructive group-hover:opacity-100"
                   >
                     <X className="h-3.5 w-3.5" />
                   </button>
