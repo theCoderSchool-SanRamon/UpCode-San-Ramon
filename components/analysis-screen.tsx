@@ -4,17 +4,13 @@ import type { ComponentType } from "react"
 import {
   ArrowLeft,
   Building2,
-  Compass,
   Gauge,
-  MapPin,
   Sparkles,
-  TrendingUp,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 
-type Weights = {
+export type Weights = {
   wealth: number
   family: number
   education: number
@@ -22,7 +18,7 @@ type Weights = {
   accessibility: number
 }
 
-type CandidateLocation = {
+export type CandidateLocation = {
   name: string
   score: number
   estimatedFamilies: string
@@ -48,6 +44,7 @@ interface AnalysisScreenProps {
   weights: Weights
   onBackToPreferences: () => void
   onBackToLocation: () => void
+  onSelectLocation: (location: CandidateLocation) => void
 }
 
 const SAMPLE_LOCATIONS: CandidateLocation[] = [
@@ -72,16 +69,16 @@ const SAMPLE_LOCATIONS: CandidateLocation[] = [
     score: 74,
     estimatedFamilies: "N/A",
     medianIncome: "N/A",
-    competition: "High",
+    competition: "Medium",
     rationale: "Placeholder rationale for third-ranked area.",
   },
 ]
 
-function percent(value: number): number {
+export function percent(value: number): number {
   return Math.round(value * 100)
 }
 
-const VISUAL_WEIGHTS = [
+export const VISUAL_WEIGHTS = [
   { key: "wealth", label: "Wealth", color: "#1d4ed8", soft: "bg-blue-100" },
   { key: "family", label: "Family", color: "#16a34a", soft: "bg-emerald-100" },
   { key: "education", label: "Education", color: "#d97706", soft: "bg-amber-100" },
@@ -118,8 +115,9 @@ export function AnalysisScreen({
   weights,
   onBackToPreferences,
   onBackToLocation,
+  onSelectLocation,
 }: AnalysisScreenProps) {
-  const weightValues = VISUAL_WEIGHTS.map((item) => weights[item.key])
+  const weightValues = VISUAL_WEIGHTS.map((item) => weights[item.key as keyof Weights])
   const primaryWeight = Object.entries(weights).sort((a, b) => b[1] - a[1])[0]
   const estimatedMarketScore = Math.round(
     70 +
@@ -132,14 +130,13 @@ export function AnalysisScreen({
   const gaugeCircumference = 2 * Math.PI * 42
   const gaugeOffset = gaugeCircumference - (estimatedMarketScore / 100) * gaugeCircumference
 
-  // Dynamically generate candidate locations based on passed selected cities
   const candidateLocations: CandidateLocation[] =
     selectedCities && selectedCities.length > 0
       ? selectedCities
           .map((city, index) => {
             const cityName = city.display || city.fullName || city.name || `Location #${index + 1}`
             const mockScore = 95 - index * 7
-            const comps = ["N/A", "N/A", "N/A", "N/A", "N/A"] as const
+            const comps = ["Low", "Medium", "Medium", "High", "High"] as const
 
             return {
               name: cityName,
@@ -150,7 +147,7 @@ export function AnalysisScreen({
               rationale: `Simulated analysis for ${cityName} based on your designated priority weights.`,
             }
           })
-          .sort((a, b) => b.score - a.score) // Sort descending by score
+          .sort((a, b) => b.score - a.score) 
       : SAMPLE_LOCATIONS
 
   return (
@@ -160,10 +157,10 @@ export function AnalysisScreen({
           <div className="grid gap-4 bg-slate-50 p-5 md:grid-cols-[1.8fr_1fr]">
             <div>
               <h1 className="mt-3 text-2xl font-bold tracking-tight text-foreground md:text-3xl">
-                Location Rankings
+                Opportunity Ranking {selectedState ? `for ${selectedState}` : ""}
               </h1>
               <p className="mt-2 text-sm text-muted-foreground">
-                Based on your preferences.
+                Based on your preferences. Select an area below to view its score breakdown.
               </p>
 
               <div className="mt-4 flex flex-wrap gap-2">
@@ -188,7 +185,8 @@ export function AnalysisScreen({
                     cy="56"
                     r="42"
                     fill="none"
-                    stroke="#2563eb"
+                    stroke="currentColor"
+                    className="text-primary"
                     strokeWidth="10"
                     strokeLinecap="round"
                     strokeDasharray={gaugeCircumference}
@@ -225,13 +223,14 @@ export function AnalysisScreen({
         <section className="grid gap-6 lg:grid-cols-[2fr_1fr]">
           <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
             <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-              Ranked Areas
+              Ranked Areas (Click for Breakdown)
             </h2>
             <div className="mt-4 space-y-4">
               {candidateLocations.map((location, index) => (
-                <article
+                <button
                   key={location.name}
-                  className="rounded-xl border border-border bg-background p-4"
+                  onClick={() => onSelectLocation(location)}
+                  className="w-full text-left rounded-xl border border-border bg-background p-4 transition-all hover:border-primary hover:shadow-md focus:outline-none focus:ring-2 focus:ring-primary/50"
                 >
                   <div className="flex items-start justify-between gap-4">
                     <div>
@@ -249,7 +248,7 @@ export function AnalysisScreen({
 
                   <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-200">
                     <div
-                      className="h-full rounded-full bg-blue-600"
+                      className="h-full rounded-full bg-primary transition-all"
                       style={{ width: `${location.score}%` }}
                     />
                   </div>
@@ -262,7 +261,7 @@ export function AnalysisScreen({
                       <span
                         className={cn(
                           "font-semibold",
-                          location.competition === "Low" && "text-accent",
+                          location.competition === "Low" && "text-primary",
                           location.competition === "Medium" && "text-foreground",
                           location.competition === "High" && "text-destructive"
                         )}
@@ -271,7 +270,7 @@ export function AnalysisScreen({
                       </span>
                     </p>
                   </div>
-                </article>
+                </button>
               ))}
             </div>
           </div>
@@ -301,16 +300,18 @@ export function AnalysisScreen({
 
                   <polygon
                     points={radarPoints(weightValues, 82, 120, 120)}
-                    fill="rgba(37,99,235,0.28)"
-                    stroke="#2563eb"
+                    fill="currentColor"
+                    fillOpacity="0.2"
+                    stroke="currentColor"
                     strokeWidth="2"
+                    className="text-primary"
                   />
                   {VISUAL_WEIGHTS.map((item, idx) => {
                     const angle = -Math.PI / 2 + (Math.PI * 2 * idx) / 5
                     const outerX = 120 + Math.cos(angle) * 82
                     const outerY = 120 + Math.sin(angle) * 82
-                    const valueX = 120 + Math.cos(angle) * 82 * weights[item.key]
-                    const valueY = 120 + Math.sin(angle) * 82 * weights[item.key]
+                    const valueX = 120 + Math.cos(angle) * 82 * weights[item.key as keyof Weights]
+                    const valueY = 120 + Math.sin(angle) * 82 * weights[item.key as keyof Weights]
                     return (
                       <g key={item.key}>
                         <line
@@ -335,9 +336,29 @@ export function AnalysisScreen({
                   <div key={item.key} className="flex items-center gap-2 rounded-md border border-slate-200 px-2 py-1.5">
                     <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: item.color }} />
                     <span className="text-muted-foreground">{item.label}</span>
-                    <span className="ml-auto font-semibold text-foreground">{percent(weights[item.key])}%</span>
+                    <span className="ml-auto font-semibold text-foreground">{percent(weights[item.key as keyof Weights])}%</span>
                   </div>
                 ))}
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+              <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+                Applied Weights
+              </h2>
+              <div className="mt-4 space-y-3">
+                <WeightBar label="Wealth" value={weights.wealth} barClass="bg-primary" />
+                <WeightBar label="Family" value={weights.family} barClass="bg-primary" />
+                <WeightBar label="Education" value={weights.education} barClass="bg-primary" />
+                <WeightBar label="Competition" value={weights.competition} barClass="bg-primary" />
+                <WeightBar label="Accessibility" value={weights.accessibility} barClass="bg-primary" />
+              </div>
+
+              <div className="mt-6 rounded-lg border border-primary/25 bg-primary/5 p-3 text-sm">
+                <p className="font-semibold text-primary">Suggested Next Step</p>
+                <p className="mt-1 text-muted-foreground">
+                  Validate the top 2 areas with local lease cost and 5-mile traffic data before finalizing.
+                </p>
               </div>
             </div>
           </aside>

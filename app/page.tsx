@@ -3,7 +3,8 @@
 import { useEffect, useRef, useState } from "react"
 import { MapPin, Search, Plus, X } from "lucide-react"
 import { AnalysisConfig } from "@/components/analysis-config"
-import { AnalysisScreen } from "@/components/analysis-screen"
+import { AnalysisScreen, CandidateLocation } from "@/components/analysis-screen"
+import { LocationDetailScreen } from "@/components/location-detail"
 import { USMap } from "@/components/us-map"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
@@ -33,11 +34,12 @@ const DEFAULT_WEIGHTS: Weights = {
 }
 
 export default function HomePage() {
-  const [step, setStep] = useState<"map" | "config" | "analysis">("map")
+  const [step, setStep] = useState<"map" | "config" | "analysis" | "detail">("map")
   const [weights, setWeights] = useState<Weights>(DEFAULT_WEIGHTS)
   const [selectedState, setSelectedState] = useState<string | null>(null)
   const [selectedCity, setSelectedCity] = useState<AutocompleteResult | null>(null)
   const [locations, setLocations] = useState<AutocompleteResult[]>([])
+  const [detailLocation, setDetailLocation] = useState<CandidateLocation | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [query, setQuery] = useState("")
@@ -254,6 +256,11 @@ export default function HomePage() {
     handleSearchSubmit()
   }
 
+  function handleSelectLocation(location: CandidateLocation) {
+    setDetailLocation(location)
+    setStep("detail")
+  }
+
   if (step === "config") {
     return (
       <AnalysisConfig
@@ -275,9 +282,9 @@ export default function HomePage() {
       <AnalysisScreen
         selectedState={locations[0] ? resolveStateAbbr(locations[0].state) : selectedState}
         selectedCity={locations[0]?.display ?? null}
-        // @ts-ignore - allowing array expansion for updated screens
         selectedCities={locations}
         weights={weights}
+        onSelectLocation={handleSelectLocation}
         onBackToPreferences={() => {
           setError(null)
           setStep("config")
@@ -286,6 +293,16 @@ export default function HomePage() {
           setError(null)
           setStep("map")
         }}
+      />
+    )
+  }
+
+  if (step === "detail" && detailLocation) {
+    return (
+      <LocationDetailScreen 
+        location={detailLocation} 
+        weights={weights} 
+        onBack={() => setStep("analysis")} 
       />
     )
   }
@@ -329,7 +346,7 @@ export default function HomePage() {
                     ? `Search city in ${selectedState}`
                     : "Select a state first to search cities"
                 }
-                className="h-10 w-full rounded-md border border-border bg-background pl-10 pr-4 text-sm text-foreground outline-none transition-shadow placeholder:text-muted-foreground focus:border-ring focus:ring-2 focus:ring-ring/20"
+                className="h-10 w-full rounded-md border border-border bg-background pl-10 pr-4 text-sm text-foreground outline-none transition-shadow placeholder:text-muted-foreground focus:border-ring focus:ring-2 focus:ring-primary/20"
                 aria-label="Search locations"
               />
 
@@ -406,7 +423,7 @@ export default function HomePage() {
 
             <Button
               variant="outline"
-              className="mt-4 w-full gap-2"
+              className="mt-4 w-full gap-2 hover:bg-primary hover:text-primary-foreground transition-colors"
               disabled={
                 !selectedCity ||
                 resolveStateAbbr(selectedCity.state) !== selectedState ||
@@ -457,7 +474,7 @@ export default function HomePage() {
               <Button
                 onClick={handleLocationContinue}
                 disabled={locations.length === 0}
-                className="w-full"
+                className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
                 size="lg"
               >
                 Confirm Locations
