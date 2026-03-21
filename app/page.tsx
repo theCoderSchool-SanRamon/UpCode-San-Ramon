@@ -39,6 +39,7 @@ export default function HomePage() {
   const [selectedState, setSelectedState] = useState<string | null>(null)
   const [selectedCity, setSelectedCity] = useState<AutocompleteResult | null>(null)
   const [locations, setLocations] = useState<AutocompleteResult[]>([])
+  const [analysisResults, setAnalysisResults] = useState<CandidateLocation[]>([])
   const [detailLocation, setDetailLocation] = useState<CandidateLocation | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -159,9 +160,35 @@ export default function HomePage() {
     setError(null)
 
     try {
-      await new Promise((resolve) => window.setTimeout(resolve, 700))
+      const response = await fetch("/api/recommend", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          weights: nextWeights,
+          locations: locations.map((location) => ({
+            name: location.display,
+            lat: location.lat,
+            lng: location.lon,
+            state: location.state,
+          })),
+        }),
+      })
+
+      const payload = (await response.json()) as {
+        error?: string
+        results?: CandidateLocation[]
+      }
+
+      if (!response.ok) {
+        throw new Error(payload.error || "Failed to analyze locations")
+      }
+
+      setAnalysisResults(payload.results || [])
       setStep("analysis")
     } catch (err) {
+      setAnalysisResults([])
       setError(err instanceof Error ? err.message : "Failed to submit preferences")
     } finally {
       setIsSubmitting(false)
@@ -283,6 +310,7 @@ export default function HomePage() {
         selectedState={locations[0] ? resolveStateAbbr(locations[0].state) : selectedState}
         selectedCity={locations[0]?.display ?? null}
         selectedCities={locations}
+        realData={analysisResults}
         weights={weights}
         onSelectLocation={handleSelectLocation}
         onBackToPreferences={() => {

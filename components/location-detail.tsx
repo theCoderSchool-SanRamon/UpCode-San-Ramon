@@ -11,6 +11,18 @@ interface LocationDetailProps {
 }
 
 export function LocationDetailScreen({ location, weights, onBack }: LocationDetailProps) {
+  // Extract the raw scores passed from the Flask backend (fallback to 0 if loading/missing)
+  const rawScores = location.rawScores || {
+    wealth: 0,
+    family: 0,
+    education: 0,
+    competition: 0,
+    accessibility: 0,
+  }
+
+  // We will calculate the exact total to ensure the math matches perfectly on screen
+  let calculatedTotal = 0
+
   return (
     <main className="min-h-screen bg-background px-6 py-8 md:px-10">
       <div className="mx-auto flex w-full max-w-4xl flex-col gap-6">
@@ -35,7 +47,7 @@ export function LocationDetailScreen({ location, weights, onBack }: LocationDeta
                 {location.name}
               </h1>
               <p className="mt-2 text-muted-foreground max-w-xl">
-                Breakdown of how the final score of {location.score} was calculated based on the custom designated weights.
+                Breakdown of how the final score of {location.score} was calculated based on the custom designated weights and live census data.
               </p>
             </div>
 
@@ -63,6 +75,11 @@ export function LocationDetailScreen({ location, weights, onBack }: LocationDeta
             <div className="divide-y divide-border">
               {VISUAL_WEIGHTS.map((item) => {
                 const weightVal = weights[item.key as keyof Weights]
+                const factorScore = rawScores[item.key as keyof Weights]
+                
+                // Weight (e.g., 0.30) * Factor Score (e.g., 85) = Contribution points
+                const contribution = weightVal * factorScore
+                calculatedTotal += contribution
 
                 return (
                   <div key={item.key} className="grid grid-cols-4 items-center p-4 text-sm transition-colors hover:bg-muted/20">
@@ -70,14 +87,19 @@ export function LocationDetailScreen({ location, weights, onBack }: LocationDeta
                       <span className="w-2 h-2 rounded-full bg-primary" />
                       {item.label}
                     </div>
+                    
                     <div className="col-span-1 text-center font-mono text-muted-foreground">
                       {percent(weightVal)}%
                     </div>
-                    <div className="col-span-1 text-center font-mono text-muted-foreground/60">
-                      -- / 100
+                    
+                    <div className="col-span-1 text-center font-mono text-muted-foreground">
+                      {/* Show the real factor score, or -- if missing */}
+                      {location.rawScores ? `${Math.round(factorScore)} / 100` : "-- / 100"}
                     </div>
-                    <div className="col-span-1 text-right font-mono font-semibold text-primary/60">
-                      + -- pts
+                    
+                    <div className="col-span-1 text-right font-mono font-semibold text-primary">
+                      {/* Show the exact mathematical contribution */}
+                      {location.rawScores ? `+ ${contribution.toFixed(1)} pts` : "+ -- pts"}
                     </div>
                   </div>
                 )
@@ -86,7 +108,9 @@ export function LocationDetailScreen({ location, weights, onBack }: LocationDeta
 
             <div className="bg-primary/5 p-4 border-t border-primary/20 flex justify-between items-center">
               <span className="font-semibold text-primary">Total Weighted Sum</span>
-              <span className="text-2xl font-bold text-primary">{location.score}</span>
+              <span className="text-2xl font-bold text-primary">
+                {location.rawScores ? Math.round(calculatedTotal) : location.score}
+              </span>
             </div>
           </div>
         </div>

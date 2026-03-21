@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server"
-import { preselectedCities } from "@/lib/mock-data"
 
 type Weights = {
   wealth: number
@@ -9,20 +8,30 @@ type Weights = {
   accessibility: number
 }
 
-type CityResult = {
-  city: string
-  overallScore: number
-  wealth: number
-  family: number
-  education: number
-  competition: number
-  accessibility: number
-  percentile?: number
+type CandidateLocation = {
+  name: string
+  score: number
+  estimatedFamilies: string
+  medianIncome: string
+  competition: "Low" | "Medium" | "High"
+  rationale: string
+  rawScores?: {
+    wealth: number
+    family: number
+    education: number
+    competition: number
+    accessibility: number
+  }
 }
 
 type RecommendBody = {
   weights?: Partial<Weights>
-  state?: string
+  locations?: Array<{
+    name?: string
+    lat?: number
+    lng?: number
+    state?: string
+  }>
 }
 
 const DEFAULT_WEIGHTS: Weights = {
@@ -31,10 +40,6 @@ const DEFAULT_WEIGHTS: Weights = {
   education: 0.1,
   competition: 0.2,
   accessibility: 0.15,
-}
-
-function clamp01(value: number): number {
-  return Math.max(0, Math.min(1, value))
 }
 
 function normalizeWeights(input?: Partial<Weights>): Weights {
@@ -66,78 +71,50 @@ function normalizeWeights(input?: Partial<Weights>): Weights {
   }
 }
 
-function seededScore(seed: string, factor: string): number {
-  const combined = `${seed}:${factor}`
-  let hash = 0
-  for (let i = 0; i < combined.length; i += 1) {
-    hash = (hash * 31 + combined.charCodeAt(i)) % 2147483647
-  }
-  return clamp01((hash % 1000) / 1000)
-}
-
-function round2(value: number): number {
-  return Math.round(value * 100) / 100
-}
-
 export async function POST(request: Request) {
   try {
     const body = (await request.json()) as RecommendBody
-    const state = String(body?.state || "").toUpperCase()
+    const locations = Array.isArray(body?.locations) ? body.locations : []
     const weights = normalizeWeights(body?.weights)
 
-    if (!state) {
+    if (locations.length === 0) {
       return NextResponse.json(
-        { error: "Missing required field: state" },
+        { error: "Missing required field: locations" },
         { status: 400 }
       )
     }
 
-    const candidates = preselectedCities.filter(
-      (city) => city.state.toUpperCase() === state
-    )
-
-    const pool = candidates.length > 0 ? candidates : preselectedCities
-
-    const results: CityResult[] = pool.map((city) => {
-      const seed = `${city.fullName}|${state}`
-      const wealth = seededScore(seed, "wealth")
-      const family = seededScore(seed, "family")
-      const education = seededScore(seed, "education")
-      const competition = seededScore(seed, "competition")
-      const accessibility = seededScore(seed, "accessibility")
-
-      const overallScore = round2(
-        wealth * weights.wealth +
-          family * weights.family +
-          education * weights.education +
-          competition * weights.competition +
-          accessibility * weights.accessibility
-      )
-
-      return {
-        city: city.fullName,
-        overallScore,
-        wealth: round2(wealth),
-        family: round2(family),
-        education: round2(education),
-        competition: round2(competition),
-        accessibility: round2(accessibility),
-      }
+    const flaskResponse = await fetch("http://127.0.0.1:5000/api/analyze", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ locations, weights }),
+      cache: "no-store",
     })
 
-    results.sort((a, b) => b.overallScore - a.overallScore)
+    const payload = (await flaskResponse.json()) as {
+      error?: string
+      results?: CandidateLocation[]
+    }
 
-    const total = results.length || 1
-    const ranked = results.map((result, index) => ({
-      ...result,
-      percentile: round2((total - index) / total),
-    }))
+    if (!flaskResponse.ok) {
+      return NextResponse.json(
+        { error: payload.error || "Flask analysis request failed" },
+        { status: flaskResponse.status }
+      )
+    }
 
-    return NextResponse.json({ results: ranked.slice(0, 10) })
-  } catch {
+    return NextResponse.json({ results: payload.results || [] })
+  } catch (error) {
     return NextResponse.json(
-      { error: "Invalid request payload" },
-      { status: 400 }
+      {
+        error:
+          error instanceof Error
+            ? error.message
+            : "Could not reach the Flask analysis service",
+      },
+      { status: 502 }
     )
   }
 }

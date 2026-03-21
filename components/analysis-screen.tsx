@@ -25,6 +25,13 @@ export type CandidateLocation = {
   medianIncome: string
   competition: "Low" | "Medium" | "High"
   rationale: string
+  rawScores?: {
+    wealth: number
+    family: number
+    education: number
+    competition: number
+    accessibility: number
+  }
 }
 
 type SelectedCityType = {
@@ -41,38 +48,12 @@ interface AnalysisScreenProps {
   selectedState: string | null
   selectedCity: string | null
   selectedCities?: SelectedCityType[]
+  realData?: CandidateLocation[]
   weights: Weights
   onBackToPreferences: () => void
   onBackToLocation: () => void
   onSelectLocation: (location: CandidateLocation) => void
 }
-
-const SAMPLE_LOCATIONS: CandidateLocation[] = [
-  {
-    name: "Ranked Area #1",
-    score: 90,
-    estimatedFamilies: "N/A",
-    medianIncome: "N/A",
-    competition: "Low",
-    rationale: "Placeholder rationale for top-ranked area.",
-  },
-  {
-    name: "Ranked Area #2",
-    score: 82,
-    estimatedFamilies: "N/A",
-    medianIncome: "N/A",
-    competition: "Medium",
-    rationale: "Placeholder rationale for second-ranked area.",
-  },
-  {
-    name: "Ranked Area #3",
-    score: 74,
-    estimatedFamilies: "N/A",
-    medianIncome: "N/A",
-    competition: "Medium",
-    rationale: "Placeholder rationale for third-ranked area.",
-  },
-]
 
 export function percent(value: number): number {
   return Math.round(value * 100)
@@ -110,8 +91,8 @@ function polygonAtRadius(points: number, radius: number, cx: number, cy: number)
 
 export function AnalysisScreen({
   selectedState,
-  selectedCity,
-  selectedCities,
+  selectedCities = [],
+  realData,
   weights,
   onBackToPreferences,
   onBackToLocation,
@@ -119,36 +100,24 @@ export function AnalysisScreen({
 }: AnalysisScreenProps) {
   const weightValues = VISUAL_WEIGHTS.map((item) => weights[item.key as keyof Weights])
   const primaryWeight = Object.entries(weights).sort((a, b) => b[1] - a[1])[0]
-  const estimatedMarketScore = Math.round(
-    70 +
-      weights.wealth * 18 +
-      weights.family * 15 +
-      weights.education * 10 +
-      weights.competition * 8 +
-      weights.accessibility * 9
-  )
+  
+  const candidateLocations: CandidateLocation[] = realData && realData.length > 0
+    ? realData
+    : selectedCities.map((city, index) => ({
+        name: city.display || city.fullName || city.name || `Location #${index + 1}`,
+        score: 0,
+        estimatedFamilies: "--",
+        medianIncome: "--",
+        competition: "Medium",
+        rationale: "Analysis pending or data unavailable...",
+      }))
+
+  const estimatedMarketScore = candidateLocations.length > 0 
+    ? candidateLocations[0].score 
+    : 0
+
   const gaugeCircumference = 2 * Math.PI * 42
   const gaugeOffset = gaugeCircumference - (estimatedMarketScore / 100) * gaugeCircumference
-
-  const candidateLocations: CandidateLocation[] =
-    selectedCities && selectedCities.length > 0
-      ? selectedCities
-          .map((city, index) => {
-            const cityName = city.display || city.fullName || city.name || `Location #${index + 1}`
-            const mockScore = 95 - index * 7
-            const comps = ["Low", "Medium", "Medium", "High", "High"] as const
-
-            return {
-              name: cityName,
-              score: mockScore,
-              estimatedFamilies: "N/A",
-              medianIncome: "N/A",
-              competition: comps[index % 5],
-              rationale: `Simulated analysis for ${cityName} based on your designated priority weights.`,
-            }
-          })
-          .sort((a, b) => b.score - a.score) 
-      : SAMPLE_LOCATIONS
 
   return (
     <main className="min-h-screen bg-background px-6 py-8 md:px-10">
@@ -195,7 +164,9 @@ export function AnalysisScreen({
                   />
                 </svg>
                 <div>
-                  <p className="text-sm font-semibold text-foreground">Low/Medium/High Potential</p>
+                  <p className="text-sm font-semibold text-foreground">
+                    {estimatedMarketScore >= 80 ? 'High' : estimatedMarketScore >= 60 ? 'Medium' : 'Low'} Potential
+                  </p>
                   <p className="mt-1 text-xs text-muted-foreground">
                     Primary driver:{" "}
                     {primaryWeight ? `${primaryWeight[0]} (${percent(primaryWeight[1])}%)` : "N/A"}
@@ -207,7 +178,7 @@ export function AnalysisScreen({
         </header>
 
         <section className="grid gap-4 md:grid-cols-3">
-          <MetricCard label="Market Fit Score" value={`/100`} icon={Gauge} />
+          <MetricCard label="Top Market Fit Score" value={`${estimatedMarketScore}/100`} icon={Gauge} />
           <MetricCard 
             label="Best Candidate" 
             value={candidateLocations[0]?.name || "N/A"} 
@@ -228,7 +199,7 @@ export function AnalysisScreen({
             <div className="mt-4 space-y-4">
               {candidateLocations.map((location, index) => (
                 <button
-                  key={location.name}
+                  key={`${location.name}-${index}`}
                   onClick={() => onSelectLocation(location)}
                   className="w-full text-left rounded-xl border border-border bg-background p-4 transition-all hover:border-primary hover:shadow-md focus:outline-none focus:ring-2 focus:ring-primary/50"
                 >
@@ -341,8 +312,6 @@ export function AnalysisScreen({
                 ))}
               </div>
             </div>
-
-           
           </aside>
         </section>
       </div>
@@ -366,29 +335,6 @@ function MetricCard({
         <Icon className="h-4 w-4 text-muted-foreground" />
       </div>
       <p className="mt-2 text-lg font-semibold text-foreground">{value}</p>
-    </div>
-  )
-}
-
-function WeightBar({
-  label,
-  value,
-  barClass,
-}: {
-  label: string
-  value: number
-  barClass: string
-}) {
-  const width = percent(value)
-  return (
-    <div className="space-y-1.5">
-      <div className="flex items-center justify-between text-xs">
-        <span className="text-muted-foreground">{label}</span>
-        <span className="font-mono text-foreground">{width}%</span>
-      </div>
-      <div className="h-2 overflow-hidden rounded-full bg-secondary">
-        <div className={cn("h-full rounded-full", barClass)} style={{ width: `${width}%` }} />
-      </div>
     </div>
   )
 }
