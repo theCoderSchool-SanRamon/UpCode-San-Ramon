@@ -47,7 +47,7 @@ export function LocationDetailScreen({ location, weights, onBack }: LocationDeta
                 {location.name}
               </h1>
               <p className="mt-2 text-muted-foreground max-w-xl">
-                Breakdown of how the final score of {location.score} was calculated based on the custom designated weights and live census data.
+                Breakdown of how the final score of {location.score} was calculated.
               </p>
             </div>
 

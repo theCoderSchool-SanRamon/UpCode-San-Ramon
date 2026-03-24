@@ -147,7 +147,7 @@ export function AnalysisScreen({
             <div className="rounded-xl border border-slate-200 bg-white/80 p-4 backdrop-blur">
               <p className="text-xs uppercase tracking-wider text-muted-foreground">Market Fit Gauge</p>
               <div className="mt-2 flex items-center gap-4">
-                <svg width="112" height="112" viewBox="0 0 112 112" className="shrink-0">
+                <svg width="112" height="112" viewBox="0 0 112 112" className="shrink-0 relative">
                   <circle cx="56" cy="56" r="42" fill="none" stroke="#e2e8f0" strokeWidth="10" />
                   <circle
                     cx="56"
@@ -155,13 +155,23 @@ export function AnalysisScreen({
                     r="42"
                     fill="none"
                     stroke="currentColor"
-                    className="text-primary"
+                    className="text-primary transition-all duration-1000 ease-out"
                     strokeWidth="10"
                     strokeLinecap="round"
                     strokeDasharray={gaugeCircumference}
                     strokeDashoffset={gaugeOffset}
                     transform="rotate(-90 56 56)"
                   />
+                  {/* Centered Score Text */}
+                  <text 
+                    x="56" 
+                    y="56" 
+                    textAnchor="middle" 
+                    dominantBaseline="central" 
+                    className="fill-foreground text-2xl font-bold"
+                  >
+                    {estimatedMarketScore}
+                  </text>
                 </svg>
                 <div>
                   <p className="text-sm font-semibold text-foreground">
@@ -219,7 +229,7 @@ export function AnalysisScreen({
 
                   <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-200">
                     <div
-                      className="h-full rounded-full bg-primary transition-all"
+                      className="h-full rounded-full bg-primary transition-all duration-1000 ease-out"
                       style={{ width: `${location.score}%` }}
                     />
                   </div>

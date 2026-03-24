@@ -10,33 +10,58 @@ CORS(app)
 def calculate_franchise_viability(location, weights):
     lat = location.get('lat')
     lng = location.get('lng')
-    # Default to medium if we can't calculate
+    # Default placeholders for uncalculated pillars
     score_competition, score_access = 75.0, 80.0 
     
     try:
         base_dir = Path(__file__).resolve().parent
-        data_path = base_dir / "06.parquet"
+        map_path = base_dir / "06.parquet"
+        data_path = base_dir / "tract_income_2024.parquet"
         
+        if not map_path.exists():
+            raise FileNotFoundError(f"Map data file not found at {map_path}")
         if not data_path.exists():
-            raise FileNotFoundError(f"Census data file not found at {data_path}")
+            raise FileNotFoundError(f"Income data file not found at {data_path}")
             
-        ca_census_map = gpd.read_parquet(data_path)
-        user_location_gdf = gpd.GeoDataFrame(geometry=gpd.points_from_xy([lng], [lat]), crs="EPSG:4326")
+        # 1. Load the map shapes (GeoPandas)
+        ca_census_map = gpd.read_parquet(map_path)
         
+        # 2. Load the income data (Standard Pandas)
+        income_data = pd.read_parquet(data_path)
+        
+        # 3. Merge them together using the GEOID column
+        ca_census_map = ca_census_map.merge(income_data, on='GEOID', how='left')
+
+        # Create user point and find intersecting 5-mile radius
+        user_location_gdf = gpd.GeoDataFrame(geometry=gpd.points_from_xy([lng], [lat]), crs="EPSG:4326")
         search_radius = user_location_gdf.to_crs("EPSG:3857").buffer(8046.72).to_crs(ca_census_map.crs)[0]
         nearby_tracts = ca_census_map[ca_census_map.intersects(search_radius)]
         
         if nearby_tracts.empty:
             raise ValueError("No data found within 5 miles.")
 
-        avg_income = pd.to_numeric(nearby_tracts['B19013_001E'], errors='coerce').mean() or 0
-        total_students = pd.to_numeric(nearby_tracts['B01001_003E'], errors='coerce').sum() or 0
-        avg_bachelors = pd.to_numeric(nearby_tracts['B15003_022E'], errors='coerce').mean() or 0
+        # NEW WEALTH CALCULATION
+        # B19001_E001 = Total Households | B19001_E017 = Households making $200,000+
+        total_hh_series = pd.to_numeric(nearby_tracts['B19001_E001'], errors='coerce')
+        rich_hh_series = pd.to_numeric(nearby_tracts['B19001_E017'], errors='coerce')
+        
+        total_hh = total_hh_series[total_hh_series > 0].sum()
+        rich_hh = rich_hh_series[rich_hh_series >= 0].sum()
 
-        score_wealth = min((float(avg_income) / 150000) * 100, 100)
-        score_family = min((float(total_students) / 4000) * 100, 100)
-        score_education = min((float(avg_bachelors) / 800) * 100, 100)
+        if total_hh > 0:
+            percent_wealthy = (rich_hh / total_hh) * 100
+        else:
+            percent_wealthy = 0
+            
+        # Score Wealth: 25% of the area making $200k+ is a perfect 100/100 score
+        score_wealth = min((percent_wealthy / 25.0) * 100, 100)
 
+        # MISSING DATA PLACEHOLDERS (Student & Education data is missing from new parquet)
+        total_students = 2500 
+        score_family = 50.0   
+        score_education = 50.0 
+
+        # Calculate Final Weighted Score
         final_score = (
             (score_wealth * weights.get('wealth', 0.3)) +
             (score_family * weights.get('family', 0.25)) +
@@ -48,10 +73,10 @@ def calculate_franchise_viability(location, weights):
         return {
             "name": location.get("name", "Unknown Location"),
             "score": round(final_score),
-            "estimatedFamilies": f"{int(total_students):,}",
-            "medianIncome": f"${int(avg_income):,}",
+            "estimatedFamilies": f"{int(total_students):,} (Est.)",
+            "medianIncome": f"{round(percent_wealthy, 1)}% >$200k",
             "competition": "Medium",
-            "rationale": f"Calculated based on a 5-mile radius containing {int(total_students):,} students and an average income of ${int(avg_income):,}.",
+            "rationale": f"Calculated based on a 5-mile radius where {round(percent_wealthy, 1)}% of households make over $200k. Student and Education data is simulated.",
             "rawScores": {
                 "wealth": score_wealth,
                 "family": score_family,
