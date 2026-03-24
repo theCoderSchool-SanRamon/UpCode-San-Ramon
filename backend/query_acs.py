@@ -42,6 +42,24 @@ def get_tracts(lat: float, lng: float, radius: float, parquets: Path) -> Optiona
     tracts = GDF(pd.concat(parts, ignore_index=True)).to_crs("EPSG:4326")
     return tracts
 
+def get_tracts_from_geom(geometry, parquets: Path) -> Optional[GDF]:
+    parts = []
+
+    for path in glob(str(parquets / "*.parquet")):
+        gdf = gpd.read_parquet(path)
+        centroids: gpd.GeoSeries = gdf["centroid"]
+        idx = centroids.sindex.query(geometry, predicate="intersects")
+        gdf = gdf.iloc[idx]
+
+        if len(gdf):
+            parts.append(gdf)
+
+    if not parts:
+        return None
+
+    tracts = GDF(pd.concat(parts, ignore_index=True)).to_crs("EPSG:4326")
+    return tracts
+
 def query(geoids: list[str], tables: list[str]) -> Optional[DF]:
     if not geoids or not tables:
         return None
