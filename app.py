@@ -1,67 +1,73 @@
 import pandas as pd
-import geopandas as gpd
 from pathlib import Path
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 
+# Import your new backend modules!
+from backend import query_acs as acs
+from backend.eval_access import evaluate_accessability
+
 app = Flask(__name__)
 CORS(app) 
+
+STATIC_DIR = (Path(__file__).resolve().parent / "static")
 
 def calculate_franchise_viability(location, weights):
     lat = location.get('lat')
     lng = location.get('lng')
-    # Default placeholders for uncalculated pillars
-    score_competition, score_access = 75.0, 80.0 
     
     try:
-        base_dir = Path(__file__).resolve().parent
-        map_path = base_dir / "06.parquet"
-        data_path = base_dir / "tract_income_2024.parquet"
+        # 1. Get all census tracts within a 5-mile radius
+        tracts = acs.get_tracts(lat, lng, 5.0, STATIC_DIR)
         
-        if not map_path.exists():
-            raise FileNotFoundError(f"Map data file not found at {map_path}")
-        if not data_path.exists():
-            raise FileNotFoundError(f"Income data file not found at {data_path}")
-            
-        # 1. Load the map shapes (GeoPandas)
-        ca_census_map = gpd.read_parquet(map_path)
-        
-        # 2. Load the income data (Standard Pandas)
-        income_data = pd.read_parquet(data_path)
-        
-        # 3. Merge them together using the GEOID column
-        ca_census_map = ca_census_map.merge(income_data, on='GEOID', how='left')
+        if tracts is None or tracts.empty:
+            raise ValueError("No census tracts found. Make sure you generated the parquets in the static folder.")
 
-        # Create user point and find intersecting 5-mile radius
-        user_location_gdf = gpd.GeoDataFrame(geometry=gpd.points_from_xy([lng], [lat]), crs="EPSG:4326")
-        search_radius = user_location_gdf.to_crs("EPSG:3857").buffer(8046.72).to_crs(ca_census_map.crs)[0]
-        nearby_tracts = ca_census_map[ca_census_map.intersects(search_radius)]
+        # 2. LIVE CENSUS API QUERY
+        # We fetch all required variables in one single API call to save time
+        census_vars = [
+            "B19001_001E", # Total Households
+            "B19001_017E", # HH making $200k+
+            "B01001_003E", # Students/Kids 
+            "B15003_022E", # Bachelor's Degrees
+            "B19013_001E"  # Median Income
+        ]
         
-        if nearby_tracts.empty:
-            raise ValueError("No data found within 5 miles.")
-
-        # NEW WEALTH CALCULATION
-        # B19001_E001 = Total Households | B19001_E017 = Households making $200,000+
-        total_hh_series = pd.to_numeric(nearby_tracts['B19001_E001'], errors='coerce')
-        rich_hh_series = pd.to_numeric(nearby_tracts['B19001_E017'], errors='coerce')
+        query_df = acs.query(tracts["GEOID"].to_list(), census_vars).astype(float)
         
-        total_hh = total_hh_series[total_hh_series > 0].sum()
-        rich_hh = rich_hh_series[rich_hh_series >= 0].sum()
+        if query_df is None or query_df.empty:
+            raise ValueError("Failed to fetch data from the US Census API.")
 
-        if total_hh > 0:
-            percent_wealthy = (rich_hh / total_hh) * 100
-        else:
-            percent_wealthy = 0
-            
-        # Score Wealth: 25% of the area making $200k+ is a perfect 100/100 score
+        # Clean negative placeholder values
+        query_df = query_df.where(query_df >= 0, 0)
+
+        # Aggregate the data
+        totals = query_df.sum()
+        means = query_df.mean()
+
+        total_hh = totals["B19001_001E"]
+        rich_hh = totals["B19001_017E"]
+        total_students = totals["B01001_003E"]
+        avg_bachelors = means["B15003_022E"]
+        avg_income = means["B19013_001E"]
+
+        percent_wealthy = (rich_hh / total_hh * 100) if total_hh > 0 else 0
+
+        # 3. LIVE MAPBOX ISOCHRONE QUERY (Accessibility)
+        access_context = evaluate_accessability({
+            "latitude": lat,
+            "longitude": lng,
+            "max_drive_time": 15 # 15 minute drive radius
+        })
+        drive_time_pop = access_context.get("population_in_drive_time", 0)
+
+        # 4. CALCULATE SCORES
         score_wealth = min((percent_wealthy / 25.0) * 100, 100)
+        score_family = min((total_students / 4000) * 100, 100)
+        score_education = min((avg_bachelors / 800) * 100, 100)
+        score_access = min((drive_time_pop / 50000) * 100, 100) # Perfect score if 50k people are within a 15-min drive
+        score_competition = 75.0 # Still hardcoded for now
 
-        # MISSING DATA PLACEHOLDERS (Student & Education data is missing from new parquet)
-        total_students = 2500 
-        score_family = 50.0   
-        score_education = 50.0 
-
-        # Calculate Final Weighted Score
         final_score = (
             (score_wealth * weights.get('wealth', 0.3)) +
             (score_family * weights.get('family', 0.25)) +
@@ -73,10 +79,10 @@ def calculate_franchise_viability(location, weights):
         return {
             "name": location.get("name", "Unknown Location"),
             "score": round(final_score),
-            "estimatedFamilies": f"{int(total_students):,} (Est.)",
+            "estimatedFamilies": f"{int(total_students):,}",
             "medianIncome": f"{round(percent_wealthy, 1)}% >$200k",
             "competition": "Medium",
-            "rationale": f"Calculated based on a 5-mile radius where {round(percent_wealthy, 1)}% of households make over $200k. Student and Education data is simulated.",
+            "rationale": f"Calculated using US Census API data. {int(drive_time_pop):,} total people live within a 15-minute drive of this location.",
             "rawScores": {
                 "wealth": score_wealth,
                 "family": score_family,
