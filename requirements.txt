@@ -1,0 +1,9 @@
+Flask==3.0.3
+Flask-Cors==4.0.0
+pandas==2.2.1
+geopandas==0.14.3
+requests==2.31.0
+pydash==8.0.0
+pyproj==3.6.1
+shapely==2.0.3
+gunicorn==21.2.0
