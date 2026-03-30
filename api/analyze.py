@@ -4,8 +4,7 @@ from backend.vercel_analysis import analyze_locations
 
 app = Flask(__name__)
 
-
-@app.route("/api/analyze", methods=["POST"])
+@app.route('/api/analyze', methods=['POST'])
 def analyze() -> tuple[object, int] | object:
     payload = request.get_json(silent=True) or {}
     locations = payload.get("locations")
