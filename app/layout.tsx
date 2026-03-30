@@ -17,7 +17,7 @@ const jetbrainsMono = JetBrains_Mono({
 export const metadata: Metadata = {
   title: "theCoderSchool",
   description:
-    "Evaluate franchise expansion locations across the United States.",
+    "Evaluate theCoderSchool franchise expansion locations across the United States.",
 }
 
 export const viewport: Viewport = {
