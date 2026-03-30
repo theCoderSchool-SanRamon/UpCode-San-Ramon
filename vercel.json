@@ -1,0 +1,8 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "functions": {
+    "api/**/*.py": {
+      "excludeFiles": "{static/**,backend/__pycache__/**,backend/make_tract_parquets.py,backend/eval_access.py,backend/eval_wealth.py,backend/query_acs.py,**/*.parquet,rand.py,tsconfig.tsbuildinfo}"
+    }
+  }
+}

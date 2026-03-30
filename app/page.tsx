@@ -160,10 +160,7 @@ export default function HomePage() {
     setError(null)
 
     try {
-      // Use environment variable for Vercel deployment, fallback to local Python server
-      const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://127.0.0.1:5000"
-      
-      const response = await fetch(`${BACKEND_URL}/api/analyze`, {
+      const response = await fetch("/api/analyze", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

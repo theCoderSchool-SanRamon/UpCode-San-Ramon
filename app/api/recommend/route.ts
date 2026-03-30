@@ -84,7 +84,8 @@ export async function POST(request: Request) {
       )
     }
 
-    const flaskResponse = await fetch("http://127.0.0.1:5000/api/analyze", {
+    const analyzeUrl = new URL("/api/analyze", request.url)
+    const flaskResponse = await fetch(analyzeUrl, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
