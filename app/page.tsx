@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react"
 import { MapPin, Search, Plus, X } from "lucide-react"
 import { AnalysisConfig } from "@/components/analysis-config"
 import { AnalysisScreen, CandidateLocation } from "@/components/analysis-screen"
+import { LocationComparisonScreen } from "@/components/location-comparison-screen"
 import { LocationDetailScreen } from "@/components/location-detail"
 import { USMap } from "@/components/us-map"
 import { Button } from "@/components/ui/button"
@@ -34,7 +35,7 @@ const DEFAULT_WEIGHTS: Weights = {
 }
 
 export default function HomePage() {
-  const [step, setStep] = useState<"map" | "config" | "analysis" | "detail">("map")
+  const [step, setStep] = useState<"map" | "config" | "analysis" | "comparison" | "detail">("map")
   const [weights, setWeights] = useState<Weights>(DEFAULT_WEIGHTS)
   const [selectedState, setSelectedState] = useState<string | null>(null)
   const [selectedCity, setSelectedCity] = useState<AutocompleteResult | null>(null)
@@ -312,6 +313,7 @@ export default function HomePage() {
         selectedCities={locations}
         realData={analysisResults}
         weights={weights}
+        onOpenComparison={() => setStep("comparison")}
         onSelectLocation={handleSelectLocation}
         onBackToPreferences={() => {
           setError(null)
@@ -321,6 +323,15 @@ export default function HomePage() {
           setError(null)
           setStep("map")
         }}
+      />
+    )
+  }
+
+  if (step === "comparison") {
+    return (
+      <LocationComparisonScreen
+        locations={analysisResults}
+        onBack={() => setStep("analysis")}
       />
     )
   }
