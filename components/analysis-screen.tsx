@@ -7,6 +7,7 @@ import {
   Gauge,
   Sparkles,
 } from "lucide-react"
+import { LocationComparisonView } from "./location-comparison"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
@@ -324,6 +325,8 @@ export function AnalysisScreen({
             </div>
           </aside>
         </section>
+
+        <LocationComparisonView locations={candidateLocations} />
       </div>
     </main>
   )
