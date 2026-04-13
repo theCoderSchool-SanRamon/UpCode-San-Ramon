@@ -359,7 +359,7 @@ export default function HomePage() {
             </h1>
             <div className="mt-4 max-w-3xl rounded-xl border border-border bg-card px-4 py-3 text-sm text-muted-foreground shadow-sm">
               <p>
-                First, select a state on the map. Then use the search bar to search, choose an option from the dropdown,
+                First, select a state on the map. Then use the search bar to search for an address, choose an option from the dropdown,
                 and press <span className="font-semibold text-foreground">Add Location</span> to lock that location.
                 Once you have all the locations you want, press <span className="font-semibold text-foreground">Confirm Locations</span>.
               </p>
@@ -389,8 +389,8 @@ export default function HomePage() {
                 onKeyDown={handleSearchKeyDown}
                 placeholder={
                   selectedState
-                    ? `Search city in ${selectedState}`
-                    : "Select a state first to search cities"
+                    ? `Search address in ${selectedState}`
+                    : "Select a state first to search address"
                 }
                 className="h-10 w-full rounded-md border border-border bg-background pl-10 pr-4 text-sm text-foreground outline-none transition-shadow placeholder:text-muted-foreground focus:border-ring focus:ring-2 focus:ring-primary/20"
                 aria-label="Search locations"
