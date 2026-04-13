@@ -357,6 +357,13 @@ export default function HomePage() {
             <h1 className="mt-1 text-2xl font-bold tracking-tight text-foreground md:text-3xl">
               Pick locations to get recommendations
             </h1>
+            <div className="mt-4 max-w-3xl rounded-xl border border-border bg-card px-4 py-3 text-sm text-muted-foreground shadow-sm">
+              <p>
+                First, select a state on the map. Then use the search bar to find a location,
+                choose an option from the dropdown, and press <span className="font-semibold text-foreground">Add Location</span> to lock it in.
+                Once you have added all the locations you want, press <span className="font-semibold text-foreground">Confirm Locations</span>.
+              </p>
+            </div>
           </div>
         </header>
 
