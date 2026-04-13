@@ -1,12 +1,20 @@
 "use client"
 
 import { useState, useCallback } from "react"
-import { ArrowLeft, Lock, Unlock, Play } from "lucide-react"
+import { ArrowLeft, Lock, Unlock, Play, Info } from "lucide-react"
 import { priorities, presets, type Priority } from "@/lib/data"
 import { Slider } from "@/components/ui/slider"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
+import {
+  Radar,
+  RadarChart,
+  PolarGrid,
+  PolarAngleAxis,
+  ResponsiveContainer,
+  PolarRadiusAxis
+} from "recharts"
 
 type Weights = {
   wealth: number
@@ -32,6 +40,14 @@ interface AnalysisConfigProps {
   continueLabel?: string
   isSubmitting?: boolean
   errorMessage?: string | null
+}
+
+// Map preset IDs to helpful descriptions
+const PRESET_DESCRIPTIONS: Record<string, string> = {
+  default: "A balanced approach weighing all factors relatively equally.",
+  "low-risk": "Prioritizes high wealth and low competition to minimize financial risk.",
+  "family-first": "Prioritizes areas with dense school-age populations and high education spending over general wealth metrics.",
+  growth: "Focuses heavily on accessibility and family density to maximize student volume and visibility."
 }
 
 export function AnalysisConfig({
@@ -98,7 +114,7 @@ export function AnalysisConfig({
   function handleSliderChange(priorityId: WeightKey, values: number[]) {
     const newValue = values[0] / 100
     setWeights((prev) => redistributeWeights(priorityId, newValue, prev))
-    setActivePreset("")
+    setActivePreset("") // Clear preset if user manually adjusts
   }
 
   function handleLockToggle(priorityId: WeightKey) {
@@ -131,9 +147,16 @@ export function AnalysisConfig({
     })
   }
 
+  // Map the current weight values for the Recharts Radar
+  const chartData = priorities.map((p) => ({
+    subject: p.name,
+    weight: Math.round(weights[p.id as WeightKey].value * 100),
+  }))
+
   return (
     <div className="flex min-h-screen flex-col lg:flex-row">
-      <div className="flex flex-1 flex-col">
+      {/* LEFT PANEL - Visualization & Context */}
+      <div className="flex flex-1 flex-col bg-slate-50/50">
         <header className="flex items-center gap-4 border-b border-border bg-card px-6 py-3">
           <div className="flex items-center gap-2">
             <span className="text-sm font-semibold tracking-tight text-foreground">
@@ -149,56 +172,84 @@ export function AnalysisConfig({
         </header>
 
         <div className="flex flex-1 flex-col items-center justify-center px-6 py-12">
-          <div className="text-center">
-            <h1 className="mt-4 text-balance text-3xl font-bold tracking-tight text-foreground md:text-4xl">
+          <div className="w-full max-w-2xl text-center">
+            <h1 className="text-balance text-3xl font-bold tracking-tight text-foreground md:text-4xl">
               Set Your Preferences
             </h1>
-            <p className="mx-auto mt-6 max-w-md text-pretty text-sm leading-relaxed text-muted-foreground">
-              Configure analysis weights for each factor.
+            <p className="mx-auto mt-4 max-w-lg text-pretty text-sm leading-relaxed text-muted-foreground">
+              Every market is different. Adjust the weights to tell our engine what matters most for your next location. Watch the chart update in real-time as you drag the sliders or apply a preset.
             </p>
+
+            {/* Radar Chart Visualization */}
+            <div className="mt-12 h-[350px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <RadarChart cx="50%" cy="50%" outerRadius="70%" data={chartData}>
+                  <PolarGrid stroke="#e5e7eb" />
+                  <PolarAngleAxis dataKey="subject" tick={{ fill: '#6b7280', fontSize: 12 }} />
+                  <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
+                  <Radar
+                    name="Weight"
+                    dataKey="weight"
+                    stroke="#047857"
+                    fill="#10b981"
+                    fillOpacity={0.3}
+                  />
+                </RadarChart>
+              </ResponsiveContainer>
+            </div>
           </div>
         </div>
       </div>
 
-      <aside className="flex w-full flex-col border-t border-border bg-card lg:w-96 lg:border-l lg:border-t-0">
+      {/* RIGHT PANEL - Controls */}
+      <aside className="flex w-full flex-col border-t border-border bg-card lg:w-96 lg:border-l lg:border-t-0 xl:w-[450px]">
         <div className="flex flex-col gap-6 overflow-auto p-6">
           <div>
-            <h2 className="text-sm font-semibold text-foreground">Analysis Priorities</h2>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Adjust weights for each factor. Total must equal 100%.
+            <h2 className="text-lg font-semibold text-foreground">Analysis Priorities</h2>
+            <p className="mt-1 text-sm text-muted-foreground flex items-start gap-2">
+              <Info className="h-4 w-4 mt-0.5 shrink-0" />
+              <span>Drag sliders to adjust importance. Use the lock icon to freeze a specific factor while the others auto-balance to 100%.</span>
             </p>
           </div>
 
-          <div className="flex flex-wrap gap-2">
-            {presets.map((preset) => (
-              <button
-                key={preset.id}
-                onClick={() => applyPreset(preset.id)}
-                className={cn(
-                  "rounded-md border px-3 py-1.5 text-xs font-medium transition-colors",
-                  activePreset === preset.id
-                    ? "border-primary bg-primary text-primary-foreground"
-                    : "border-border bg-background text-foreground hover:bg-secondary"
-                )}
-              >
-                {preset.label}
-              </button>
-            ))}
+          {/* Presets Section */}
+          <div className="rounded-xl border border-border bg-slate-50/50 p-4">
+            <div className="flex flex-wrap gap-2 mb-3">
+              {presets.map((preset) => (
+                <button
+                  key={preset.id}
+                  onClick={() => applyPreset(preset.id)}
+                  className={cn(
+                    "rounded-md border px-3 py-1.5 text-xs font-medium transition-colors",
+                    activePreset === preset.id
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : "border-border bg-background text-foreground hover:bg-secondary"
+                  )}
+                >
+                  {preset.label}
+                </button>
+              ))}
+            </div>
+            
+            {/* Dynamic Preset Description */}
+            <p className="text-xs text-muted-foreground italic h-8">
+              {activePreset ? PRESET_DESCRIPTIONS[activePreset] : "Custom weights applied."}
+            </p>
           </div>
 
-          <div className="flex items-center justify-between rounded-lg border border-border bg-background px-3 py-2">
-            <span className="text-xs font-medium text-muted-foreground">Total Weight</span>
+          <div className="flex items-center justify-between rounded-lg border border-border bg-background px-4 py-3">
+            <span className="text-sm font-medium text-foreground">Total Weight Distribution</span>
             <span
               className={cn(
-                "font-mono text-sm font-semibold",
-                isBalanced ? "text-accent" : "text-destructive"
+                "font-mono text-base font-semibold",
+                isBalanced ? "text-primary" : "text-destructive"
               )}
             >
               {(totalWeight * 100).toFixed(0)}%
             </span>
           </div>
 
-          <div className="flex flex-col gap-5">
+          <div className="flex flex-col gap-6 mt-2">
             {priorities.map((priority) => (
               <PrioritySlider
                 key={priority.id}
@@ -214,7 +265,7 @@ export function AnalysisConfig({
           </div>
         </div>
 
-        <div className="mt-auto border-t border-border p-6">
+        <div className="mt-auto border-t border-border p-6 bg-card">
           <Button
             onClick={handleContinue}
             disabled={!isBalanced || isSubmitting}
@@ -240,7 +291,6 @@ export function AnalysisConfig({
   )
 }
 
-
 interface PrioritySliderProps {
   priority: Priority
   value: number
@@ -253,30 +303,30 @@ function PrioritySlider({ priority, value, locked, onValueChange, onLockToggle }
   const percentage = Math.round(value * 100)
 
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-3">
       <div className="flex items-center justify-between">
-        <div className="flex-1">
-          <p className="text-sm font-medium text-foreground">{priority.name}</p>
-          <p className="text-xs text-muted-foreground">{priority.purpose}</p>
+        <div className="flex-1 pr-4">
+          <p className="text-sm font-semibold text-foreground">{priority.name}</p>
+          <p className="text-xs text-muted-foreground mt-0.5 leading-snug">{priority.purpose}</p>
         </div>
         <div className="flex items-center gap-2">
           <Badge
             variant="secondary"
-            className="min-w-[3rem] justify-center font-mono text-xs"
+            className="min-w-[3.5rem] justify-center font-mono text-sm py-1"
           >
             {percentage}%
           </Badge>
           <button
             onClick={onLockToggle}
             className={cn(
-              "rounded-md p-1.5 transition-colors",
+              "rounded-md p-2 transition-colors border",
               locked
-                ? "bg-primary/10 text-primary"
-                : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+                ? "bg-primary/10 text-primary border-primary/20"
+                : "border-transparent text-muted-foreground hover:bg-secondary hover:text-foreground"
             )}
             aria-label={locked ? `Unlock ${priority.name}` : `Lock ${priority.name}`}
           >
-            {locked ? <Lock className="h-3.5 w-3.5" /> : <Unlock className="h-3.5 w-3.5" />}
+            {locked ? <Lock className="h-4 w-4" /> : <Unlock className="h-4 w-4" />}
           </button>
         </div>
       </div>
