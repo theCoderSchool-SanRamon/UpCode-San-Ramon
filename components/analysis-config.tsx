@@ -154,7 +154,7 @@ export function AnalysisConfig({
               Set Your Preferences
             </h1>
             <p className="mx-auto mt-6 max-w-md text-pretty text-sm leading-relaxed text-muted-foreground">
-              Configure analysis weights for each factor. Continue to select a state and fetch city recommendations.
+              Configure analysis weights for each factor.
             </p>
           </div>
         </div>
