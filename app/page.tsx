@@ -8,8 +8,8 @@ import { LocationComparisonScreen } from "@/components/location-comparison-scree
 import { LocationDetailScreen } from "@/components/location-detail"
 import { USMap } from "@/components/us-map"
 import { Button } from "@/components/ui/button"
+import { usStates } from "@/lib/data"
 import { cn } from "@/lib/utils"
-import { usStates } from "@/lib/mock-data"
 
 type Weights = {
   wealth: number
@@ -357,6 +357,13 @@ export default function HomePage() {
             <h1 className="mt-1 text-2xl font-bold tracking-tight text-foreground md:text-3xl">
               Pick locations to get recommendations
             </h1>
+            <div className="mt-4 max-w-3xl rounded-xl border border-border bg-card px-4 py-3 text-sm text-muted-foreground shadow-sm">
+              <p>
+                First, select a state on the map. Then use the search bar to search, choose an option from the dropdown,
+                and press <span className="font-semibold text-foreground">Add Location</span> to lock that location.
+                Once you have all the locations you want, press <span className="font-semibold text-foreground">Confirm Locations</span>.
+              </p>
+            </div>
           </div>
         </header>
 

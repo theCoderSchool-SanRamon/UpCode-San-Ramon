@@ -32,6 +32,8 @@ lib/ (Utility Functions)
 
 utils.ts: helper functions to merge Tailwind CSS classes dynamically.
 
+data.ts: allows other screens to import priorities and presets and US States
+
 Root Config Files
 
 components.json: config for UI components.

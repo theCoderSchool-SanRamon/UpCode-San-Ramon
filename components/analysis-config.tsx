@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from "react"
 import { ArrowLeft, Lock, Unlock, Play } from "lucide-react"
-import { priorities, presets, type Priority } from "@/lib/mock-data"
+import { priorities, presets, type Priority } from "@/lib/data"
 import { Slider } from "@/components/ui/slider"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
