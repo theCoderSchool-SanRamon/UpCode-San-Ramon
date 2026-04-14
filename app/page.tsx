@@ -397,7 +397,7 @@ export default function HomePage() {
             <div className="mt-4 max-w-3xl rounded-xl border border-border bg-card px-4 py-3 text-sm text-muted-foreground shadow-sm">
               <p>
                 First, select a state on the map. Then use the search bar to search for an address, choose an option from the dropdown,
-                and press <span className="font-semibold text-foreground">Enter</span> to add that location.
+                and press <span className="font-semibold text-foreground">Enter</span> or <span className="font-semibold text-foreground">Add Location</span> to add that location.
                 Once you have all the locations you want, press <span className="font-semibold text-foreground">Confirm Locations</span>.
               </p>
             </div>
