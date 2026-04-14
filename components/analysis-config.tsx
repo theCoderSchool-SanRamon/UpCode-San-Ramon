@@ -193,9 +193,6 @@ export function AnalysisConfig({
             <div className="grid gap-6 xl:grid-cols-[1.3fr_0.9fr]">
               <div className="rounded-3xl border border-emerald-100 bg-white/85 p-6 shadow-[0_24px_80px_rgba(16,185,129,0.08)] backdrop-blur">
                 <div className="max-w-2xl">
-                  <p className="text-sm font-medium text-emerald-700">
-                    The radar chart is mapped directly to your live React weight state.
-                  </p>
                   <p className="mt-2 text-sm leading-6 text-slate-600">
                     As you drag a slider, the polygon updates in real time using the same
                     five weight values that drive your scoring logic. Locked factors stay
