@@ -162,7 +162,7 @@ export function AnalysisConfig({
   const lockedCount = Object.values(weights).filter((item) => item.locked).length
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(16,185,129,0.12),_transparent_35%),linear-gradient(180deg,_#f7fcfa_0%,_#ecfdf5_100%)]">
+    <div className="min-h-screen bg-white">
       <div className="flex min-h-screen flex-col lg:flex-row">
         <section className="flex flex-1 flex-col">
           <header className="border-b border-emerald-100/80 bg-white/80 px-6 py-4 backdrop-blur md:px-8">
