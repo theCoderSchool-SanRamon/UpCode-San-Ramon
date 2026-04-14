@@ -236,6 +236,42 @@ export default function HomePage() {
     setError(null)
   }
 
+  function addSuggestionToLocations(suggestion: AutocompleteResult) {
+    const suggestionState = resolveStateAbbr(suggestion.state)
+    if (!suggestionState) {
+      setError("Could not resolve state for the selected location.")
+      return
+    }
+
+    if (!selectedState) {
+      setError("Select a state first, then choose a city.")
+      return
+    }
+
+    if (suggestionState !== selectedState) {
+      setError("Choose a location in the selected state.")
+      return
+    }
+
+    if (locations.length >= 5) {
+      setError("You can only add up to 5 locations.")
+      return
+    }
+
+    if (locations.some((loc) => loc.display === suggestion.display)) {
+      setError("Location already added.")
+      return
+    }
+
+    setSelectedCity(null)
+    setLocations((prev) => [...prev, suggestion])
+    setQuery("")
+    setSuggestions([])
+    setShowSuggestions(false)
+    setHighlightIndex(-1)
+    setError(null)
+  }
+
   function handleSearchSubmit() {
     if (!selectedState) {
       setError("Select a state first, then choose a city.")
@@ -244,9 +280,10 @@ export default function HomePage() {
 
     const firstSuggestion = suggestions[0]
     if (firstSuggestion) {
-      handleSuggestionSelect(firstSuggestion)
+      addSuggestionToLocations(firstSuggestion)
       return
     }
+
     setError("Select a valid city from search suggestions.")
   }
 
@@ -277,7 +314,7 @@ export default function HomePage() {
     }
 
     if (highlightIndex >= 0 && highlightIndex < suggestions.length) {
-      handleSuggestionSelect(suggestions[highlightIndex])
+      addSuggestionToLocations(suggestions[highlightIndex])
       return
     }
 
@@ -360,7 +397,7 @@ export default function HomePage() {
             <div className="mt-4 max-w-3xl rounded-xl border border-border bg-card px-4 py-3 text-sm text-muted-foreground shadow-sm">
               <p>
                 First, select a state on the map. Then use the search bar to search for an address, choose an option from the dropdown,
-                and press <span className="font-semibold text-foreground">Add Location</span> to lock that location.
+                and press <span className="font-semibold text-foreground">Enter</span> to add that location.
                 Once you have all the locations you want, press <span className="font-semibold text-foreground">Confirm Locations</span>.
               </p>
             </div>

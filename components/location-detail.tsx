@@ -23,6 +23,30 @@ export function LocationDetailScreen({ location, weights, onBack }: LocationDeta
   // We will calculate the exact total to ensure the math matches perfectly on screen
   let calculatedTotal = 0
 
+  function getFactorExplanation(
+    factorKey: keyof Weights,
+    factorLabel: string,
+    factorScore: number,
+    weightVal: number,
+    contribution: number
+  ) {
+    const scoreBand =
+      factorScore >= 80 ? "very strong" :
+      factorScore >= 60 ? "solid" :
+      factorScore >= 40 ? "mixed" :
+      "weak"
+
+    const factorSummary: Record<keyof Weights, string> = {
+      wealth: "based on the area's income profile and concentration of higher-income households",
+      family: "based on the area's concentration of families with school-age children",
+      education: "based on district quality, education spending, and STEM-related indicators",
+      competition: "based on how much nearby competition may affect this market",
+      accessibility: "based on convenience factors like access, traffic, and ease of visiting",
+    }
+
+    return `${factorLabel} received a ${Math.round(factorScore)}/100 local score, which is ${scoreBand} ${factorSummary[factorKey]}. With your ${percent(weightVal)}% weight on this factor, it contributes ${contribution.toFixed(1)} points to the final score.`
+  }
+
   return (
     <main className="min-h-screen bg-background px-6 py-8 md:px-10">
       <div className="mx-auto flex w-full max-w-4xl flex-col gap-6">
@@ -80,9 +104,20 @@ export function LocationDetailScreen({ location, weights, onBack }: LocationDeta
                 // Weight (e.g., 0.30) * Factor Score (e.g., 85) = Contribution points
                 const contribution = weightVal * factorScore
                 calculatedTotal += contribution
+                const explanation = getFactorExplanation(
+                  item.key as keyof Weights,
+                  item.label,
+                  factorScore,
+                  weightVal,
+                  contribution
+                )
 
                 return (
-                  <div key={item.key} className="grid grid-cols-4 items-center p-4 text-sm transition-colors hover:bg-muted/20">
+                  <div
+                    key={item.key}
+                    className="group relative grid grid-cols-4 items-center p-4 text-sm transition-colors hover:bg-muted/20"
+                    tabIndex={0}
+                  >
                     <div className="col-span-1 font-medium text-foreground flex items-center gap-2">
                       <span className="w-2 h-2 rounded-full bg-primary" />
                       {item.label}
@@ -100,6 +135,12 @@ export function LocationDetailScreen({ location, weights, onBack }: LocationDeta
                     <div className="col-span-1 text-right font-mono font-semibold text-primary">
                       {/* Show the exact mathematical contribution */}
                       {location.rawScores ? `+ ${contribution.toFixed(1)} pts` : "+ -- pts"}
+                    </div>
+
+                    <div className="pointer-events-none absolute left-4 right-4 top-full z-10 mt-2 rounded-lg border border-border bg-popover px-3 py-2 text-xs leading-relaxed text-popover-foreground opacity-0 shadow-lg transition-opacity duration-150 group-hover:opacity-100 group-focus-visible:opacity-100">
+                      {location.rawScores
+                        ? explanation
+                        : "Factor details will appear when raw scoring data is available."}
                     </div>
                   </div>
                 )
