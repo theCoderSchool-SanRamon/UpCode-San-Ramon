@@ -141,11 +141,9 @@ export function AnalysisConfig({
   }
 
   const chartData = priorities.map((priority) => ({
-    factor: priority.name.replace(" & ", " / "),
     shortLabel: priority.name.split(" ")[0],
     value: Math.round(weights[priority.id as WeightKey].value * 100),
     fullMark: 100,
-    locked: weights[priority.id as WeightKey].locked,
   }))
 
   const activePresetConfig = presets.find((preset) => preset.id === activePreset)
@@ -165,7 +163,7 @@ export function AnalysisConfig({
     <div className="min-h-screen bg-white">
       <div className="flex min-h-screen flex-col lg:flex-row">
         <section className="flex flex-1 flex-col">
-          <header className="border-b border-emerald-100/80 bg-white/80 px-6 py-4 backdrop-blur md:px-8">
+          <header className="border-b-4 border-emerald-900 bg-white px-6 py-4 md:px-8">
             <div className="flex items-center gap-4">
               <div>
                 <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-900 md:text-4xl">
@@ -177,7 +175,7 @@ export function AnalysisConfig({
                   onClick={onBack}
                   variant="outline"
                   size="sm"
-                  className="ml-auto gap-1.5 border-emerald-200 bg-white/70"
+                  className="ml-auto gap-1.5 border-emerald-900 bg-white text-emerald-950 hover:bg-emerald-50"
                 >
                   <ArrowLeft className="h-3.5 w-3.5" />
                   Back to Location
@@ -186,9 +184,9 @@ export function AnalysisConfig({
             </div>
           </header>
 
-          <div className="flex flex-1 flex-col justify-between px-6 py-8 md:px-8">
+          <div className="flex flex-1 flex-col justify-between bg-[radial-gradient(circle_at_top_left,_rgba(6,78,59,0.12),_transparent_30%),linear-gradient(180deg,_#ffffff_0%,_#f6fbf8_100%)] px-6 py-8 md:px-8">
             <div className="grid gap-6 xl:grid-cols-[1.3fr_0.9fr]">
-              <div className="rounded-3xl border border-emerald-100 bg-white/85 p-6 shadow-[0_24px_80px_rgba(16,185,129,0.08)] backdrop-blur">
+              <div className="rounded-3xl border-2 border-emerald-900 bg-white p-6 shadow-[0_24px_80px_rgba(6,78,59,0.14)]">
                 <div className="max-w-2xl">
                   <p className="mt-2 text-sm leading-6 text-slate-600">
                     As you drag a slider, the polygon updates in real time using the same
@@ -204,7 +202,7 @@ export function AnalysisConfig({
                       outerRadius="70%"
                       margin={{ top: 24, right: 36, bottom: 24, left: 36 }}
                     >
-                      <PolarGrid stroke="#b7e4d2" />
+                      <PolarGrid stroke="#4b7d69" />
                       <PolarAngleAxis
                         dataKey="shortLabel"
                         tick={{ fill: "#0f172a", fontSize: 12, fontWeight: 600 }}
@@ -254,31 +252,10 @@ export function AnalysisConfig({
                 />
               </div>
             </div>
-
-            <div className="mt-8 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-              {chartData.map((item) => (
-                <div
-                  key={item.factor}
-                  className="rounded-2xl border border-emerald-100 bg-white/80 px-4 py-3 shadow-sm"
-                >
-                  <div className="flex items-center justify-between gap-3">
-                    <p className="text-sm font-medium text-slate-900">{item.shortLabel}</p>
-                    {item.locked && (
-                      <Badge variant="secondary" className="bg-emerald-50 text-emerald-700">
-                        Locked
-                      </Badge>
-                    )}
-                  </div>
-                  <p className="mt-2 text-2xl font-bold tracking-tight text-emerald-600">
-                    {item.value}%
-                  </p>
-                </div>
-              ))}
-            </div>
           </div>
         </section>
 
-        <aside className="flex w-full flex-col border-t border-emerald-100 bg-white/95 lg:w-96 lg:border-l lg:border-t-0 xl:w-[450px]">
+        <aside className="flex w-full flex-col border-t-4 border-emerald-900 bg-emerald-50/70 lg:w-96 lg:border-l-4 lg:border-t-0 xl:w-[450px]">
           <div className="flex flex-1 flex-col gap-6 overflow-auto p-6">
             <div>
               <h2 className="text-lg font-semibold text-slate-900">Analysis Priorities</h2>
@@ -287,9 +264,9 @@ export function AnalysisConfig({
               </p>
             </div>
 
-            <div className="rounded-2xl border border-emerald-100 bg-emerald-50/70 p-4">
+            <div className="rounded-2xl border-2 border-emerald-900 bg-emerald-100 p-4">
               <div className="flex items-start gap-3">
-                <Info className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" />
+                <Info className="mt-0.5 h-4 w-4 shrink-0 text-emerald-900" />
                 <p className="text-sm leading-6 text-emerald-900">
                   Drag sliders to rebalance your factors. Use the lock icon to freeze any
                   factor before adjusting the others, and the remaining unlocked factors
@@ -307,8 +284,8 @@ export function AnalysisConfig({
                     className={cn(
                       "rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors",
                       activePreset === preset.id
-                        ? "border-emerald-600 bg-emerald-600 text-white"
-                        : "border-slate-200 bg-slate-50 text-slate-700 hover:border-emerald-300 hover:bg-emerald-50"
+                        ? "border-emerald-900 bg-emerald-900 text-white"
+                        : "border-emerald-700 bg-white text-emerald-950 hover:bg-emerald-100"
                     )}
                   >
                     {preset.label}
@@ -318,12 +295,12 @@ export function AnalysisConfig({
               <p className="text-sm italic leading-6 text-slate-500">{presetDescription}</p>
             </div>
 
-            <div className="flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+            <div className="flex items-center justify-between rounded-2xl border-2 border-emerald-900 bg-white px-4 py-3">
               <span className="text-sm font-medium text-slate-600">Total Weight</span>
               <span
                 className={cn(
                   "font-mono text-lg font-semibold",
-                  isBalanced ? "text-emerald-600" : "text-destructive"
+                  isBalanced ? "text-emerald-900" : "text-destructive"
                 )}
               >
                 {(totalWeight * 100).toFixed(0)}%
@@ -346,11 +323,11 @@ export function AnalysisConfig({
             </div>
           </div>
 
-          <div className="border-t border-slate-200 p-6">
+          <div className="border-t-2 border-emerald-900/30 p-6">
             <Button
               onClick={handleContinue}
               disabled={!isBalanced || isSubmitting}
-              className="w-full gap-2 bg-emerald-600 text-white hover:bg-emerald-700"
+              className="w-full gap-2 bg-emerald-900 text-white hover:bg-emerald-800"
               size="lg"
             >
               <Play className="h-4 w-4" />
@@ -384,8 +361,8 @@ function MetricCard({ label, value, caption, highlight = false }: MetricCardProp
   return (
     <div
       className={cn(
-        "rounded-3xl border bg-white/85 p-5 shadow-sm",
-        highlight ? "border-destructive/30" : "border-emerald-100"
+        "rounded-3xl border-2 bg-white p-5 shadow-[0_14px_40px_rgba(6,78,59,0.08)]",
+        highlight ? "border-destructive/30" : "border-emerald-900"
       )}
     >
       <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
@@ -415,14 +392,17 @@ function PrioritySlider({
   const percentage = Math.round(value * 100)
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
+    <div className="rounded-2xl border-2 border-emerald-900 bg-white p-4">
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1">
           <p className="text-sm font-semibold text-slate-900">{priority.name}</p>
           <p className="mt-1 text-xs leading-5 text-slate-500">{priority.purpose}</p>
         </div>
         <div className="flex items-center gap-2">
-          <Badge variant="secondary" className="min-w-[3.25rem] justify-center font-mono text-xs">
+          <Badge
+            variant="secondary"
+            className="min-w-[3.25rem] justify-center border border-emerald-900 bg-emerald-100 font-mono text-xs text-emerald-950"
+          >
             {percentage}%
           </Badge>
           <button
@@ -430,8 +410,8 @@ function PrioritySlider({
             className={cn(
               "rounded-full border p-2 transition-colors",
               locked
-                ? "border-emerald-200 bg-emerald-100 text-emerald-700"
-                : "border-slate-200 bg-white text-slate-500 hover:border-emerald-200 hover:text-emerald-700"
+                ? "border-emerald-900 bg-emerald-900 text-white"
+                : "border-emerald-700 bg-white text-emerald-900 hover:bg-emerald-50"
             )}
             aria-label={locked ? `Unlock ${priority.name}` : `Lock ${priority.name}`}
           >
