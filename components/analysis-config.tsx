@@ -163,7 +163,7 @@ export function AnalysisConfig({
     <div className="min-h-screen bg-white">
       <div className="flex min-h-screen flex-col lg:flex-row">
         <section className="flex flex-1 flex-col">
-          <header className="border-b-4 border-emerald-900 bg-white px-6 py-4 md:px-8">
+          <header className="border-b border-emerald-200 bg-white px-6 py-4 md:px-8">
             <div className="flex items-center gap-4">
               <div>
                 <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-900 md:text-4xl">
@@ -184,7 +184,7 @@ export function AnalysisConfig({
             </div>
           </header>
 
-          <div className="flex flex-1 flex-col justify-between bg-[radial-gradient(circle_at_top_left,_rgba(6,78,59,0.12),_transparent_30%),linear-gradient(180deg,_#ffffff_0%,_#f6fbf8_100%)] px-6 py-8 md:px-8">
+          <div className="flex flex-1 flex-col justify-between bg-white px-6 py-8 md:px-8">
             <div className="grid gap-6 xl:grid-cols-[1.3fr_0.9fr]">
               <div className="rounded-3xl border-2 border-emerald-900 bg-white p-6 shadow-[0_24px_80px_rgba(6,78,59,0.14)]">
                 <div className="max-w-2xl">
@@ -255,7 +255,7 @@ export function AnalysisConfig({
           </div>
         </section>
 
-        <aside className="flex w-full flex-col border-t-4 border-emerald-900 bg-emerald-50/70 lg:w-96 lg:border-l-4 lg:border-t-0 xl:w-[450px]">
+        <aside className="flex w-full flex-col border-t border-emerald-200 bg-white lg:w-96 lg:border-l lg:border-t-0 xl:w-[450px]">
           <div className="flex flex-1 flex-col gap-6 overflow-auto p-6">
             <div>
               <h2 className="text-lg font-semibold text-slate-900">Analysis Priorities</h2>
@@ -264,7 +264,7 @@ export function AnalysisConfig({
               </p>
             </div>
 
-            <div className="rounded-2xl border-2 border-emerald-900 bg-emerald-100 p-4">
+            <div className="rounded-2xl border border-emerald-300 bg-emerald-50 p-4">
               <div className="flex items-start gap-3">
                 <Info className="mt-0.5 h-4 w-4 shrink-0 text-emerald-900" />
                 <p className="text-sm leading-6 text-emerald-900">
@@ -295,7 +295,7 @@ export function AnalysisConfig({
               <p className="text-sm italic leading-6 text-slate-500">{presetDescription}</p>
             </div>
 
-            <div className="flex items-center justify-between rounded-2xl border-2 border-emerald-900 bg-white px-4 py-3">
+            <div className="flex items-center justify-between rounded-2xl border border-emerald-300 bg-white px-4 py-3">
               <span className="text-sm font-medium text-slate-600">Total Weight</span>
               <span
                 className={cn(
@@ -323,7 +323,7 @@ export function AnalysisConfig({
             </div>
           </div>
 
-          <div className="border-t-2 border-emerald-900/30 p-6">
+          <div className="border-t border-emerald-200 p-6">
             <Button
               onClick={handleContinue}
               disabled={!isBalanced || isSubmitting}
@@ -361,8 +361,8 @@ function MetricCard({ label, value, caption, highlight = false }: MetricCardProp
   return (
     <div
       className={cn(
-        "rounded-3xl border-2 bg-white p-5 shadow-[0_14px_40px_rgba(6,78,59,0.08)]",
-        highlight ? "border-destructive/30" : "border-emerald-900"
+        "rounded-3xl border bg-white p-5 shadow-[0_14px_40px_rgba(6,78,59,0.08)]",
+        highlight ? "border-destructive/30" : "border-emerald-300"
       )}
     >
       <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
@@ -392,7 +392,7 @@ function PrioritySlider({
   const percentage = Math.round(value * 100)
 
   return (
-    <div className="rounded-2xl border-2 border-emerald-900 bg-white p-4">
+    <div className="rounded-2xl border border-emerald-300 bg-white p-4">
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1">
           <p className="text-sm font-semibold text-slate-900">{priority.name}</p>
@@ -401,7 +401,7 @@ function PrioritySlider({
         <div className="flex items-center gap-2">
           <Badge
             variant="secondary"
-            className="min-w-[3.25rem] justify-center border border-emerald-900 bg-emerald-100 font-mono text-xs text-emerald-950"
+            className="min-w-[3.25rem] justify-center border border-emerald-300 bg-emerald-50 font-mono text-xs text-emerald-950"
           >
             {percentage}%
           </Badge>
@@ -411,7 +411,7 @@ function PrioritySlider({
               "rounded-full border p-2 transition-colors",
               locked
                 ? "border-emerald-900 bg-emerald-900 text-white"
-                : "border-emerald-700 bg-white text-emerald-900 hover:bg-emerald-50"
+                : "border-emerald-300 bg-white text-emerald-900 hover:bg-emerald-50"
             )}
             aria-label={locked ? `Unlock ${priority.name}` : `Lock ${priority.name}`}
           >
