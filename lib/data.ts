@@ -49,7 +49,7 @@ export const presets: Preset[] = [
   {
     id: "default",
     label: "Default",
-    description: "Balanced weighting across all factors",
+    description: " ",
     weights: {
       wealth: 0.3,
       family: 0.3,
