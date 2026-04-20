@@ -4,11 +4,12 @@ import { useEffect, useRef, useState } from "react"
 import { MapPin, Search, Plus, X } from "lucide-react"
 import { AnalysisConfig } from "@/components/analysis-config"
 import { AnalysisScreen, CandidateLocation } from "@/components/analysis-screen"
+import { LocationComparisonScreen } from "@/components/location-comparison-screen"
 import { LocationDetailScreen } from "@/components/location-detail"
 import { USMap } from "@/components/us-map"
 import { Button } from "@/components/ui/button"
+import { usStates } from "@/lib/data"
 import { cn } from "@/lib/utils"
-import { usStates } from "@/lib/mock-data"
 
 type Weights = {
   wealth: number
@@ -34,7 +35,7 @@ const DEFAULT_WEIGHTS: Weights = {
 }
 
 export default function HomePage() {
-  const [step, setStep] = useState<"map" | "config" | "analysis" | "detail">("map")
+  const [step, setStep] = useState<"map" | "config" | "analysis" | "comparison" | "detail">("map")
   const [weights, setWeights] = useState<Weights>(DEFAULT_WEIGHTS)
   const [selectedState, setSelectedState] = useState<string | null>(null)
   const [selectedCity, setSelectedCity] = useState<AutocompleteResult | null>(null)
@@ -160,7 +161,7 @@ export default function HomePage() {
     setError(null)
 
     try {
-      const response = await fetch("/api/recommend", {
+      const response = await fetch("/api/analyze", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -235,6 +236,42 @@ export default function HomePage() {
     setError(null)
   }
 
+  function addSuggestionToLocations(suggestion: AutocompleteResult) {
+    const suggestionState = resolveStateAbbr(suggestion.state)
+    if (!suggestionState) {
+      setError("Could not resolve state for the selected location.")
+      return
+    }
+
+    if (!selectedState) {
+      setError("Select a state first, then choose a city.")
+      return
+    }
+
+    if (suggestionState !== selectedState) {
+      setError("Choose a location in the selected state.")
+      return
+    }
+
+    if (locations.length >= 5) {
+      setError("You can only add up to 5 locations.")
+      return
+    }
+
+    if (locations.some((loc) => loc.display === suggestion.display)) {
+      setError("Location already added.")
+      return
+    }
+
+    setSelectedCity(null)
+    setLocations((prev) => [...prev, suggestion])
+    setQuery("")
+    setSuggestions([])
+    setShowSuggestions(false)
+    setHighlightIndex(-1)
+    setError(null)
+  }
+
   function handleSearchSubmit() {
     if (!selectedState) {
       setError("Select a state first, then choose a city.")
@@ -243,9 +280,10 @@ export default function HomePage() {
 
     const firstSuggestion = suggestions[0]
     if (firstSuggestion) {
-      handleSuggestionSelect(firstSuggestion)
+      addSuggestionToLocations(firstSuggestion)
       return
     }
+
     setError("Select a valid city from search suggestions.")
   }
 
@@ -276,7 +314,7 @@ export default function HomePage() {
     }
 
     if (highlightIndex >= 0 && highlightIndex < suggestions.length) {
-      handleSuggestionSelect(suggestions[highlightIndex])
+      addSuggestionToLocations(suggestions[highlightIndex])
       return
     }
 
@@ -312,6 +350,7 @@ export default function HomePage() {
         selectedCities={locations}
         realData={analysisResults}
         weights={weights}
+        onOpenComparison={() => setStep("comparison")}
         onSelectLocation={handleSelectLocation}
         onBackToPreferences={() => {
           setError(null)
@@ -321,6 +360,15 @@ export default function HomePage() {
           setError(null)
           setStep("map")
         }}
+      />
+    )
+  }
+
+  if (step === "comparison") {
+    return (
+      <LocationComparisonScreen
+        locations={analysisResults}
+        onBack={() => setStep("analysis")}
       />
     )
   }
@@ -346,6 +394,13 @@ export default function HomePage() {
             <h1 className="mt-1 text-2xl font-bold tracking-tight text-foreground md:text-3xl">
               Pick locations to get recommendations
             </h1>
+            <div className="mt-4 max-w-3xl rounded-xl border border-border bg-card px-4 py-3 text-sm text-muted-foreground shadow-sm">
+              <p>
+                First, select a state on the map. Then use the search bar to search for an address, choose an option from the dropdown,
+                and press <span className="font-semibold text-foreground">Enter</span> or <span className="font-semibold text-foreground">Add Location</span> to add that location.
+                Once you have all the locations you want, press <span className="font-semibold text-foreground">Confirm Locations</span>.
+              </p>
+            </div>
           </div>
         </header>
 
@@ -371,8 +426,8 @@ export default function HomePage() {
                 onKeyDown={handleSearchKeyDown}
                 placeholder={
                   selectedState
-                    ? `Search city in ${selectedState}`
-                    : "Select a state first to search cities"
+                    ? `Search address in ${selectedState}`
+                    : "Select a state first to search address"
                 }
                 className="h-10 w-full rounded-md border border-border bg-background pl-10 pr-4 text-sm text-foreground outline-none transition-shadow placeholder:text-muted-foreground focus:border-ring focus:ring-2 focus:ring-primary/20"
                 aria-label="Search locations"

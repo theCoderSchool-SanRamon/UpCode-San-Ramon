@@ -52,6 +52,7 @@ interface AnalysisScreenProps {
   weights: Weights
   onBackToPreferences: () => void
   onBackToLocation: () => void
+  onOpenComparison: () => void
   onSelectLocation: (location: CandidateLocation) => void
 }
 
@@ -96,6 +97,7 @@ export function AnalysisScreen({
   weights,
   onBackToPreferences,
   onBackToLocation,
+  onOpenComparison,
   onSelectLocation,
 }: AnalysisScreenProps) {
   const weightValues = VISUAL_WEIGHTS.map((item) => weights[item.key as keyof Weights])
@@ -203,9 +205,14 @@ export function AnalysisScreen({
 
         <section className="grid gap-6 lg:grid-cols-[2fr_1fr]">
           <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
-            <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-              Ranked Areas (Click for Breakdown)
-            </h2>
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+                Ranked Areas (Click for Breakdown)
+              </h2>
+              <Button variant="outline" size="sm" onClick={onOpenComparison}>
+                Compare Cities
+              </Button>
+            </div>
             <div className="mt-4 space-y-4">
               {candidateLocations.map((location, index) => (
                 <button
