@@ -137,8 +137,8 @@ export function AnalysisConfig({
 
   return (
     <div className="min-h-screen bg-white px-6 py-8 md:px-8">
-      <div className="mx-auto max-w-4xl rounded-3xl border border-emerald-800 bg-white shadow-sm">
-        <div className="border-b border-emerald-800 px-6 py-5 md:px-8">
+      <div className="mx-auto max-w-4xl rounded-3xl border border-emerald-200 bg-white shadow-sm">
+        <div className="border-b border-emerald-200 px-6 py-5 md:px-8">
           <div className="flex items-center gap-4">
             <div>
               <h1 className="text-3xl font-bold tracking-tight text-slate-900 md:text-4xl">
@@ -153,7 +153,7 @@ export function AnalysisConfig({
                 onClick={onBack}
                 variant="outline"
                 size="sm"
-                className="ml-auto gap-1.5 border-emerald-800 bg-white text-emerald-800 hover:bg-emerald-800 hover:text-white"
+                className="ml-auto gap-1.5 border-emerald-300 bg-white text-emerald-900 hover:bg-emerald-50"
               >
                 <ArrowLeft className="h-3.5 w-3.5" />
                 Back to Location
@@ -163,10 +163,10 @@ export function AnalysisConfig({
         </div>
 
         <div className="space-y-6 px-6 py-6 md:px-8">
-          <div className="rounded-2xl border border-emerald-800 bg-white p-4">
+          <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
             <div className="flex items-start gap-3">
-              <Info className="mt-0.5 h-4 w-4 shrink-0 text-emerald-800" />
-              <p className="text-sm leading-6 text-slate-700">
+              <Info className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" />
+              <p className="text-sm leading-6 text-emerald-900">
                 Drag sliders to rebalance your factors. Lock any value before adjusting
                 the others and the remaining unlocked factors will auto-balance.
               </p>
@@ -183,7 +183,7 @@ export function AnalysisConfig({
                     "rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors",
                     activePreset === preset.id
                       ? "border-emerald-800 bg-emerald-800 text-white"
-                      : "border-emerald-800 bg-white text-emerald-800 hover:bg-emerald-800 hover:text-white"
+                      : "border-emerald-300 bg-white text-slate-700 hover:border-emerald-500 hover:bg-emerald-50"
                   )}
                 >
                   {preset.label}
@@ -193,12 +193,12 @@ export function AnalysisConfig({
             <p className="text-sm italic leading-6 text-slate-500">{presetDescription}</p>
           </div>
 
-          <div className="flex items-center justify-between rounded-2xl border border-emerald-800 bg-white px-4 py-3">
+          <div className="flex items-center justify-between rounded-2xl border border-emerald-300 bg-white px-4 py-3">
             <span className="text-sm font-medium text-slate-600">Total Weight</span>
             <span
               className={cn(
                 "font-mono text-lg font-semibold",
-                isBalanced ? "text-emerald-800" : "text-destructive"
+                isBalanced ? "text-emerald-700" : "text-destructive"
               )}
             >
               {(totalWeight * 100).toFixed(0)}%
@@ -220,7 +220,7 @@ export function AnalysisConfig({
             ))}
           </div>
 
-          <div className="border-t border-emerald-800 pt-6">
+          <div className="border-t border-emerald-200 pt-6">
             <Button
               onClick={handleContinue}
               disabled={!isBalanced || isSubmitting}
@@ -265,26 +265,25 @@ function PrioritySlider({
   const percentage = Math.round(value * 100)
 
   return (
-    <div className="rounded-2xl border border-emerald-800 bg-white p-4">
+    <div className="rounded-2xl border border-emerald-300 bg-white p-4">
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1">
           <p className="text-sm font-semibold text-slate-900">{priority.name}</p>
           <p className="mt-1 text-xs leading-5 text-slate-500">{priority.purpose}</p>
         </div>
         <div className="flex items-center gap-2">
-          <Badge
-            variant="secondary"
-            className="min-w-[3.25rem] justify-center border border-emerald-800 bg-white font-mono text-xs text-emerald-800"
+          <span
+            className="min-w-[3.25rem] justify-center border border-emerald-300 bg-emerald-50 font-mono text-xs text-emerald-900 inline-flex items-center px-2.5 py-0.5 rounded-full"
           >
             {percentage}%
-          </Badge>
+          </span>
           <button
             onClick={onLockToggle}
             className={cn(
               "rounded-full border p-2 transition-colors",
               locked
                 ? "border-emerald-800 bg-emerald-800 text-white"
-                : "border-emerald-800 bg-white text-emerald-800 hover:bg-emerald-800 hover:text-white"
+                : "border-emerald-300 bg-white text-emerald-900 hover:bg-emerald-50"
             )}
             aria-label={locked ? `Unlock ${priority.name}` : `Lock ${priority.name}`}
           >

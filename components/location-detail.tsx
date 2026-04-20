@@ -1,8 +1,7 @@
 "use client"
 
-import { useEffect, useMemo, useRef, useState } from "react"
-import { AnimatePresence, motion } from "framer-motion"
-import { ArrowLeft, Calculator, ChevronRight, MapPin, Pin, PinOff } from "lucide-react"
+import { useEffect, useMemo, useState } from "react"
+import { ArrowLeft, Calculator, MapPin } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { CandidateLocation, Weights, percent, VISUAL_WEIGHTS } from "@/components/analysis-screen"
 import { cn } from "@/lib/utils"
@@ -23,26 +22,16 @@ type FactorDetail = {
   hasRawScore: boolean
 }
 
-const EXIT_DELAY_MS = 180
-
 export function LocationDetailScreen({ location, weights, onBack }: LocationDetailProps) {
-  const [hoveredFactor, setHoveredFactor] = useState<keyof Weights | null>(null)
-  const [selectedFactor, setSelectedFactor] = useState<keyof Weights | null>(null)
-  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [activeFactor, setActiveFactor] = useState<keyof Weights>(VISUAL_WEIGHTS[0].key as keyof Weights)
 
-  const rawScores = location.rawScores || {
-    wealth: 0,
-    family: 0,
-    education: 0,
-    competition: 0,
-    accessibility: 0,
-  }
+  const hasRawScores = Boolean(location.rawScores)
 
   const factorDetails = useMemo<FactorDetail[]>(() => {
     return VISUAL_WEIGHTS.map((item) => {
       const key = item.key as keyof Weights
       const weightVal = weights[key]
-      const factorScore = rawScores[key]
+      const factorScore = location.rawScores?.[key] ?? 0
       const contribution = weightVal * factorScore
 
       return {
@@ -58,66 +47,18 @@ export function LocationDetailScreen({ location, weights, onBack }: LocationDeta
           weightVal,
           contribution
         ),
-        hasRawScore: Boolean(location.rawScores),
+        hasRawScore: hasRawScores,
       }
     })
-  }, [location.rawScores, rawScores, weights])
+  }, [hasRawScores, location.rawScores, weights])
 
   const calculatedTotal = factorDetails.reduce((sum, item) => sum + item.contribution, 0)
-  const activeFactorKey = selectedFactor ?? hoveredFactor
   const activeDetail =
-    factorDetails.find((item) => item.key === activeFactorKey) ?? factorDetails[0] ?? null
-  const isPanelOpen = Boolean(activeFactorKey && activeDetail)
+    factorDetails.find((item) => item.key === activeFactor) ?? factorDetails[0] ?? null
 
   useEffect(() => {
-    return () => {
-      if (closeTimerRef.current) {
-        clearTimeout(closeTimerRef.current)
-      }
-    }
-  }, [])
-
-  function clearCloseTimer() {
-    if (closeTimerRef.current) {
-      clearTimeout(closeTimerRef.current)
-      closeTimerRef.current = null
-    }
-  }
-
-  function scheduleHoverClose() {
-    clearCloseTimer()
-    if (selectedFactor) return
-
-    closeTimerRef.current = setTimeout(() => {
-      setHoveredFactor(null)
-      closeTimerRef.current = null
-    }, EXIT_DELAY_MS)
-  }
-
-  function handleRowEnter(factorKey: keyof Weights) {
-    clearCloseTimer()
-    if (!selectedFactor) {
-      setHoveredFactor(factorKey)
-    }
-  }
-
-  function handleRowLeave() {
-    scheduleHoverClose()
-  }
-
-  function handlePanelEnter() {
-    clearCloseTimer()
-  }
-
-  function handlePanelLeave() {
-    scheduleHoverClose()
-  }
-
-  function handleRowClick(factorKey: keyof Weights) {
-    clearCloseTimer()
-    setSelectedFactor((current) => (current === factorKey ? null : factorKey))
-    setHoveredFactor(factorKey)
-  }
+    setActiveFactor(VISUAL_WEIGHTS[0].key as keyof Weights)
+  }, [location.name])
 
   return (
     <main className="min-h-screen bg-background px-6 py-8 md:px-10">
@@ -160,16 +101,8 @@ export function LocationDetailScreen({ location, weights, onBack }: LocationDeta
             Calculation Logic
           </h2>
 
-          <motion.div
-            layout
-            transition={{ layout: { duration: 0.32, ease: [0.22, 1, 0.36, 1] } }}
-            className="flex flex-col gap-4 lg:flex-row"
-          >
-            <motion.div
-              layout
-              transition={{ layout: { duration: 0.32, ease: [0.22, 1, 0.36, 1] } }}
-              className={cn("min-w-0", isPanelOpen ? "lg:basis-3/5" : "lg:basis-full")}
-            >
+          <div className="flex flex-col gap-4 lg:flex-row">
+            <div className="min-w-0 lg:basis-3/5">
               <div className="overflow-hidden rounded-xl border border-border bg-card">
                 <div className="grid grid-cols-4 bg-muted/50 p-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                   <div className="col-span-1">Factor</div>
@@ -180,17 +113,14 @@ export function LocationDetailScreen({ location, weights, onBack }: LocationDeta
 
                 <div className="divide-y divide-border">
                   {factorDetails.map((detail) => {
-                    const isActive = activeFactorKey === detail.key
-                    const isPinned = selectedFactor === detail.key
+                    const isActive = activeDetail?.key === detail.key
 
                     return (
-                      <motion.button
+                      <button
                         key={detail.key}
-                        layout
                         type="button"
-                        onClick={() => handleRowClick(detail.key)}
-                        onMouseEnter={() => handleRowEnter(detail.key)}
-                        onMouseLeave={handleRowLeave}
+                        onMouseEnter={() => setActiveFactor(detail.key)}
+                        onFocus={() => setActiveFactor(detail.key)}
                         className={cn(
                           "grid w-full grid-cols-4 items-center p-4 text-left text-sm transition-colors",
                           isActive ? "bg-primary/10" : "hover:bg-muted/20"
@@ -198,8 +128,7 @@ export function LocationDetailScreen({ location, weights, onBack }: LocationDeta
                       >
                         <div className="col-span-1 flex items-center gap-2 font-medium text-foreground">
                           <span className="h-2 w-2 rounded-full bg-primary" />
-                          <span>{detail.label}</span>
-                          {isPinned && <Pin className="h-3.5 w-3.5 text-primary" />}
+                          {detail.label}
                         </div>
 
                         <div className="col-span-1 text-center font-mono text-muted-foreground">
@@ -210,20 +139,10 @@ export function LocationDetailScreen({ location, weights, onBack }: LocationDeta
                           {detail.hasRawScore ? `${Math.round(detail.factorScore)} / 100` : "-- / 100"}
                         </div>
 
-                        <div className="col-span-1 flex items-center justify-end gap-2 text-right font-mono font-semibold text-primary">
-                          <span>
-                            {detail.hasRawScore
-                              ? `+ ${detail.contribution.toFixed(1)} pts`
-                              : "+ -- pts"}
-                          </span>
-                          <ChevronRight
-                            className={cn(
-                              "h-4 w-4 transition-transform",
-                              isActive && "translate-x-0.5"
-                            )}
-                          />
+                        <div className="col-span-1 text-right font-mono font-semibold text-primary">
+                          {detail.hasRawScore ? `+ ${detail.contribution.toFixed(1)} pts` : "+ -- pts"}
                         </div>
-                      </motion.button>
+                      </button>
                     )
                   })}
                 </div>
@@ -235,95 +154,67 @@ export function LocationDetailScreen({ location, weights, onBack }: LocationDeta
                   </span>
                 </div>
               </div>
-            </motion.div>
+            </div>
 
-            <AnimatePresence initial={false}>
-              {isPanelOpen && activeDetail ? (
-                <motion.div
-                  key={activeDetail.key}
-                  layout
-                  initial={{ opacity: 0, x: 28 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: 20 }}
-                  transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
-                  onMouseEnter={handlePanelEnter}
-                  onMouseLeave={handlePanelLeave}
-                  className="min-w-0 lg:basis-2/5"
-                >
-                  <div className="h-full rounded-xl border border-emerald-200 bg-emerald-50/30 p-5 shadow-sm">
-                    <div className="flex items-start justify-between gap-4">
-                      <div>
-                        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-800">
-                          Factor Details
-                        </p>
-                        <h3 className="mt-2 text-2xl font-semibold text-slate-900">
-                          {activeDetail.label}
-                        </h3>
-                      </div>
-                      {selectedFactor === activeDetail.key ? (
-                        <button
-                          type="button"
-                          onClick={() => setSelectedFactor(null)}
-                          className="inline-flex items-center gap-1 rounded-full border border-emerald-300 bg-white px-3 py-1 text-xs font-medium text-emerald-800 transition-colors hover:border-emerald-800"
-                        >
-                          <PinOff className="h-3.5 w-3.5" />
-                          Unpin
-                        </button>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => setSelectedFactor(activeDetail.key)}
-                          className="inline-flex items-center gap-1 rounded-full border border-emerald-300 bg-white px-3 py-1 text-xs font-medium text-emerald-800 transition-colors hover:border-emerald-800"
-                        >
-                          <Pin className="h-3.5 w-3.5" />
-                          Pin
-                        </button>
-                      )}
-                    </div>
+            <aside className="min-w-0 lg:basis-2/5">
+              <div className="h-full rounded-xl border border-emerald-200 bg-emerald-50/30 p-5 shadow-sm">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-800">
+                    Factor Details
+                  </p>
+                  <h3 className="mt-2 text-2xl font-semibold text-slate-900">
+                    {activeDetail?.label ?? "Factor"}
+                  </h3>
+                </div>
 
-                    <div className="mt-5 grid gap-3 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3">
-                      <DetailStat
-                        label="Your Weight"
-                        value={`${percent(activeDetail.weightVal)}%`}
-                      />
-                      <DetailStat
-                        label="Local Score"
-                        value={
-                          activeDetail.hasRawScore
-                            ? `${Math.round(activeDetail.factorScore)}/100`
-                            : "-- / 100"
-                        }
-                      />
-                      <DetailStat
-                        label="Contribution"
-                        value={
-                          activeDetail.hasRawScore
-                            ? `${activeDetail.contribution.toFixed(1)} pts`
-                            : "-- pts"
-                        }
-                      />
-                    </div>
+                <div className="mt-5 grid gap-3 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3">
+                  <DetailStat
+                    label="Your Weight"
+                    value={
+                      activeDetail ? `${percent(activeDetail.weightVal)}%` : "--"
+                    }
+                  />
+                  <DetailStat
+                    label="Local Score"
+                    value={
+                      activeDetail
+                        ? activeDetail.hasRawScore
+                          ? `${Math.round(activeDetail.factorScore)}/100`
+                          : "-- / 100"
+                        : "-- / 100"
+                    }
+                  />
+                  <DetailStat
+                    label="Contribution"
+                    value={
+                      activeDetail
+                        ? activeDetail.hasRawScore
+                          ? `${activeDetail.contribution.toFixed(1)} pts`
+                          : "-- pts"
+                        : "-- pts"
+                    }
+                  />
+                </div>
 
-                    <div className="mt-5 rounded-lg border border-emerald-100 bg-white p-4">
-                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-                        Explanation
-                      </p>
-                      <p className="mt-2 text-sm leading-7 text-slate-700">
-                        {activeDetail.hasRawScore
-                          ? activeDetail.explanation
-                          : "Factor details will appear when raw scoring data is available."}
-                      </p>
-                    </div>
+                <div className="mt-5 rounded-lg border border-emerald-100 bg-white p-4">
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                    Explanation
+                  </p>
+                  <p className="mt-2 text-sm leading-7 text-slate-700">
+                    {activeDetail
+                      ? activeDetail.hasRawScore
+                        ? activeDetail.explanation
+                        : "Factor details will appear when raw scoring data is available."
+                      : "Hover over a factor row to inspect how it contributes to the total score."}
+                  </p>
+                </div>
 
-                    <p className="mt-4 text-xs leading-6 text-slate-500">
-                      Click a row to pin this panel open. Hovering over another row previews
-                      that factor when nothing is pinned.
-                    </p>
-                  </div>
-                </motion.div>
-              ) : null}
-            </AnimatePresence>
-          </motion.div>
+                <p className="mt-4 text-xs leading-6 text-slate-500">
+                  Hover over a row in the table to inspect that factor in detail.
+                </p>
+              </div>
+            </aside>
+          </div>
         </section>
       </div>
     </main>
