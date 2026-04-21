@@ -1,3 +1,5 @@
+*.pyc
+*.dat
 # v0 runtime files (should only exist in preview, not in git)
 __v0_runtime_loader.js
 __v0_devtools.tsx
@@ -6,9 +8,11 @@ __v0_jsx-dev-runtime.ts
 # Common ignores
 node_modules/
 .next/
-.env*.local
+.env
+.env*
 .DS_Store
 __pycache__/
 **/__pycache__/
 *.py[cod]
 tsconfig.tsbuildinfo
+.venv/

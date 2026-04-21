@@ -1,14 +1,18 @@
+import os
+
 import requests
 import pydash as _
 import geopandas as gpd
 from shapely.geometry import shape
-from backend import query_acs as acs
+import query_acs as acs
 from pathlib import Path
 
 _isochrone_url = "https://api.mapbox.com/isochrone/v1/mapbox/driving-traffic/"
 
-#TODO: replace with private key, in an environment file
-_mapbox_key = "pk.eyJ1IjoidXBjb2Rlc3IiLCJhIjoiY21uM3l4azFzMWtnbzJxcTR3ZWJkODBhcSJ9.IjC79aLYMZRpqYlHYp1yRQ"
+from dotenv import load_dotenv
+load_dotenv()
+
+_mapbox_key = os.environ.get("MAPBOX_KEY")
 
 def evaluate(context):
     response = requests.get(
