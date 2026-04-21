@@ -13,12 +13,19 @@ TIGERWEB_TRACTS_QUERY_URL = (
 MAPBOX_ISOCHRONE_URL = (
     "https://api.mapbox.com/isochrone/v1/mapbox/driving-traffic/"
 )
+GOOGLE_PLACES_SEARCH_URL = "https://places.googleapis.com/v1/places:searchText"
 
 EARTH_RADIUS_M = 6_371_008.8
 M_PER_MI = 1_609.344
 TRACT_QUERY_FIELDS = "GEOID"
 ACS_BATCH_SIZE = 200
 HTTP_TIMEOUT = 30
+COMPETITION_RADIUS_MILES = 5.0
+COMPETITION_SEARCH_QUERIES = (
+    "coding school",
+    "tutoring service",
+    "STEM program",
+)
 
 DEFAULT_WEIGHTS = {
     "wealth": 0.30,
@@ -220,6 +227,65 @@ def evaluate_accessibility(
     return _sum_variable(rows, "B01003_001E"), None
 
 
+def _competition_level_from_count(competitor_count: int) -> str:
+    if competitor_count >= 9:
+        return "High"
+    if competitor_count >= 4:
+        return "Medium"
+    return "Low"
+
+
+def _competition_score_from_count(competitor_count: int) -> float:
+    # Lower nearby competition should yield a higher score.
+    return max(0.0, min(100.0, 100.0 - (competitor_count / 12.0) * 100.0))
+
+
+def evaluate_competition(
+    lat: float, lng: float, radius_miles: float
+) -> tuple[float, str, int, str | None]:
+    token = os.getenv("GOOGLE_API_KEY")
+    if not token:
+        return 50.0, "Medium", 0, "GOOGLE_API_KEY is not configured"
+
+    headers = {
+        "Content-Type": "application/json",
+        "X-Goog-Api-Key": token,
+        "X-Goog-FieldMask": "places.id,places.businessStatus",
+    }
+
+    place_ids: set[str] = set()
+
+    for search_query in COMPETITION_SEARCH_QUERIES:
+        response = session.post(
+            GOOGLE_PLACES_SEARCH_URL,
+            headers=headers,
+            json={
+                "maxResultCount": 20,
+                "locationBias": {
+                    "circle": {
+                        "center": {"latitude": lat, "longitude": lng},
+                        "radius": radius_miles * M_PER_MI,
+                    }
+                },
+                "textQuery": search_query,
+            },
+            timeout=HTTP_TIMEOUT,
+        )
+        response.raise_for_status()
+        payload = response.json()
+
+        for place in payload.get("places", []):
+            place_id = str(place.get("id", "")).strip()
+            status = str(place.get("businessStatus", "")).strip().upper()
+            if place_id and (not status or status == "OPERATIONAL"):
+                place_ids.add(place_id)
+
+    competitor_count = len(place_ids)
+    competition_level = _competition_level_from_count(competitor_count)
+    competition_score = _competition_score_from_count(competitor_count)
+    return competition_score, competition_level, competitor_count, None
+
+
 def analyze_location(location: dict[str, Any], weights: dict[str, float]) -> dict[str, Any]:
     lat = float(location.get("lat"))
     lng = float(location.get("lng"))
@@ -257,11 +323,19 @@ def analyze_location(location: dict[str, Any], weights: dict[str, float]) -> dic
     if access_warning:
         warnings.append(access_warning)
 
+    (
+        score_competition,
+        competition_level,
+        competitor_count,
+        competition_warning,
+    ) = evaluate_competition(lat, lng, COMPETITION_RADIUS_MILES)
+    if competition_warning:
+        warnings.append(competition_warning)
+
     score_wealth = min((wealthy_share / 25.0) * 100.0, 100.0)
     score_family = min((total_students / 4000.0) * 100.0, 100.0)
     score_education = min((avg_bachelors / 800.0) * 100.0, 100.0)
     score_access = min((drive_time_pop / 50000.0) * 100.0, 100.0)
-    score_competition = 75.0
 
     final_score = (
         score_wealth * weights["wealth"]
@@ -275,6 +349,7 @@ def analyze_location(location: dict[str, Any], weights: dict[str, float]) -> dic
         f"{int(round(drive_time_pop)):,} people are estimated inside the 15-minute drive-time isochrone.",
         f"{len(tract_geoids)} census tracts intersect the 5-mile study area.",
         f"Average tract median income is approximately ${int(round(avg_income)):,}.",
+        f"{competitor_count} nearby competitor locations were found across coding school, tutoring, and STEM program searches.",
     ]
     if warnings:
         rationale_parts.append(f"Warnings: {'; '.join(warnings)}.")
@@ -284,7 +359,7 @@ def analyze_location(location: dict[str, Any], weights: dict[str, float]) -> dic
         "score": round(final_score),
         "estimatedFamilies": f"{int(round(total_students)):,}",
         "medianIncome": f"{round(wealthy_share, 1)}% >$200k",
-        "competition": "Medium",
+        "competition": competition_level,
         "rationale": " ".join(rationale_parts),
         "rawScores": {
             "wealth": round(score_wealth, 2),
