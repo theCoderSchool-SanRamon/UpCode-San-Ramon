@@ -8,31 +8,8 @@ import {
   Sparkles,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import type { CandidateLocation, Weights } from "@/lib/analysis"
 import { cn } from "@/lib/utils"
-
-export type Weights = {
-  wealth: number
-  family: number
-  education: number
-  competition: number
-  accessibility: number
-}
-
-export type CandidateLocation = {
-  name: string
-  score: number
-  estimatedFamilies: string
-  medianIncome: string
-  competition: "Low" | "Medium" | "High"
-  rationale: string
-  rawScores?: {
-    wealth: number
-    family: number
-    education: number
-    competition: number
-    accessibility: number
-  }
-}
 
 type SelectedCityType = {
   display?: string

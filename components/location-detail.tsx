@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useState } from "react"
 import { ArrowLeft, Calculator, MapPin, Download } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { CandidateLocation, Weights, percent, VISUAL_WEIGHTS } from "@/components/analysis-screen"
+import { percent, VISUAL_WEIGHTS } from "@/components/analysis-screen"
+import type { CandidateLocation, Weights } from "@/lib/analysis"
 import { generateInvestmentBrief } from "@/lib/pdf-utils"
 import { cn } from "@/lib/utils"
 

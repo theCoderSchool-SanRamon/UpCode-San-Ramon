@@ -1,24 +1,13 @@
 import jsPDF from 'jspdf'
 import html2canvas from 'html2canvas'
+import type { RawScores, Weights } from '@/lib/analysis'
 
 export interface PDFExportData {
   locationName: string
   finalScore: number
   rationale: string
-  weights: {
-    wealth: number
-    family: number
-    education: number
-    competition: number
-    accessibility: number
-  }
-  rawScores?: {
-    wealth: number
-    family: number
-    education: number
-    competition: number
-    accessibility: number
-  }
+  weights: Weights
+  rawScores?: RawScores
   estimatedFamilies: string
   medianIncome: string
   competition: string

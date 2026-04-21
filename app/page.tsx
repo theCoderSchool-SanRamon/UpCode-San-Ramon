@@ -3,21 +3,14 @@
 import { useEffect, useRef, useState } from "react"
 import { MapPin, Search, Plus, X } from "lucide-react"
 import { AnalysisConfig } from "@/components/analysis-config"
-import { AnalysisScreen, CandidateLocation } from "@/components/analysis-screen"
+import { AnalysisScreen } from "@/components/analysis-screen"
 import { LocationComparisonScreen } from "@/components/location-comparison-screen"
 import { LocationDetailScreen } from "@/components/location-detail"
 import { USMap } from "@/components/us-map"
 import { Button } from "@/components/ui/button"
+import type { CandidateLocation, Weights } from "@/lib/analysis"
 import { usStates } from "@/lib/data"
 import { cn } from "@/lib/utils"
-
-type Weights = {
-  wealth: number
-  family: number
-  education: number
-  competition: number
-  accessibility: number
-}
 
 type AutocompleteResult = {
   display: string
@@ -161,7 +154,7 @@ export default function HomePage() {
     setError(null)
 
     try {
-      const response = await fetch("/api/analyze", {
+      const response = await fetch("/api/recommend", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

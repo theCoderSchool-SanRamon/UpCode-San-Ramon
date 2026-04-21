@@ -1,9 +1,9 @@
 "use client"
 
 import { ArrowLeft } from "lucide-react"
-import { CandidateLocation } from "./analysis-screen"
 import { LocationComparisonView } from "./location-comparison"
 import { Button } from "@/components/ui/button"
+import type { CandidateLocation } from "@/lib/analysis"
 
 interface LocationComparisonScreenProps {
   locations: CandidateLocation[]

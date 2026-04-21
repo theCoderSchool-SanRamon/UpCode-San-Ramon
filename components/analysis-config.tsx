@@ -3,18 +3,11 @@
 import { useCallback, useState } from "react"
 import { ArrowLeft, Info, Lock, Play, Unlock } from "lucide-react"
 import { priorities, presets, type Priority } from "@/lib/data"
+import type { Weights } from "@/lib/analysis"
 import { Slider } from "@/components/ui/slider"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
-
-type Weights = {
-  wealth: number
-  family: number
-  education: number
-  competition: number
-  accessibility: number
-}
 
 type WeightKey = keyof Weights
 

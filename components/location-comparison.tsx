@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { CandidateLocation, VISUAL_WEIGHTS } from "./analysis-screen"
+import { VISUAL_WEIGHTS } from "./analysis-screen"
 import { Trophy } from "lucide-react"
 import {
   Select,
@@ -10,6 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import type { CandidateLocation } from "@/lib/analysis"
 
 interface LocationComparisonProps {
   locations: CandidateLocation[]

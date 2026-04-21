@@ -1,28 +1,8 @@
 import { NextResponse } from "next/server"
-
-type Weights = {
-  wealth: number
-  family: number
-  education: number
-  competition: number
-  accessibility: number
-}
-
-type CandidateLocation = {
-  name: string
-  score: number
-  estimatedFamilies: string
-  medianIncome: string
-  competition: "Low" | "Medium" | "High"
-  rationale: string
-  rawScores?: {
-    wealth: number
-    family: number
-    education: number
-    competition: number
-    accessibility: number
-  }
-}
+import {
+  normalizeCandidateLocations,
+  type Weights,
+} from "@/lib/analysis"
 
 type RecommendBody = {
   weights?: Partial<Weights>
@@ -96,7 +76,7 @@ export async function POST(request: Request) {
 
     const payload = (await flaskResponse.json()) as {
       error?: string
-      results?: CandidateLocation[]
+      results?: unknown
     }
 
     if (!flaskResponse.ok) {
@@ -106,7 +86,9 @@ export async function POST(request: Request) {
       )
     }
 
-    return NextResponse.json({ results: payload.results || [] })
+    return NextResponse.json({
+      results: normalizeCandidateLocations(payload.results),
+    })
   } catch (error) {
     return NextResponse.json(
       {
