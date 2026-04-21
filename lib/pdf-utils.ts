@@ -16,6 +16,7 @@ export interface PDFExportData {
     wealth: number
     family: number
     education: number
+    competition: number
     accessibility: number
   }
   estimatedFamilies: string
@@ -32,7 +33,8 @@ function generateRadarSVG(weights: PDFExportData['weights']): string {
   const radius = 80
 
   const weightValues = [weights.wealth, weights.family, weights.education, weights.competition, weights.accessibility]
-  const colors = ['#1d4ed8', '#16a34a', '#d97706', '#dc2626', '#0f766e']
+  // Updated to an emerald-focused, cohesive color palette
+  const colors = ['#065f46', '#10b981', '#f59e0b', '#ef4444', '#0f766e']
 
   let svg = `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg">`
 
@@ -56,7 +58,7 @@ function generateRadarSVG(weights: PDFExportData['weights']): string {
     svg += `<line x1="${cx}" y1="${cy}" x2="${x}" y2="${y}" stroke="#e2e8f0" stroke-width="1"/>`
   })
 
-  // Radar shape
+  // Radar shape (Updated to Emerald)
   const radarPoints = weightValues.map((value, i) => {
     const angle = -Math.PI / 2 + (Math.PI * 2 * i) / 5
     const x = cx + Math.cos(angle) * radius * value
@@ -64,7 +66,8 @@ function generateRadarSVG(weights: PDFExportData['weights']): string {
     return `${x},${y}`
   }).join(' ')
 
-  svg += `<polygon points="${radarPoints}" fill="rgba(59, 130, 246, 0.2)" stroke="#3b82f6" stroke-width="2"/>`
+  // fill: emerald-500 (20% opacity), stroke: emerald-600
+  svg += `<polygon points="${radarPoints}" fill="rgba(16, 185, 129, 0.2)" stroke="#059669" stroke-width="2"/>`
 
   // Data points and lines
   weightValues.forEach((value, i) => {
@@ -123,28 +126,28 @@ export async function generateInvestmentBrief(data: PDFExportData): Promise<void
   const pageHeight = pdf.internal.pageSize.getHeight()
   let yPosition = 20
 
-  // Header box
-  pdf.setFillColor(248, 250, 252) // Light gray background
+  // Header box (Updated to Emerald Theme)
+  pdf.setFillColor(236, 253, 245) // emerald-50
   pdf.rect(10, 10, pageWidth - 20, 50, 'F')
-  pdf.setDrawColor(59, 130, 246) // Blue border
+  pdf.setDrawColor(6, 95, 70) // emerald-800 border
   pdf.setLineWidth(1)
   pdf.rect(10, 10, pageWidth - 20, 50)
 
   // Header with branding
   pdf.setFontSize(28)
   pdf.setFont('helvetica', 'bold')
-  pdf.setTextColor(59, 130, 246) // Blue color
+  pdf.setTextColor(6, 95, 70) // emerald-800 text
   pdf.text('UpCode', pageWidth / 2, yPosition + 5, { align: 'center' })
   yPosition += 8
 
   pdf.setFontSize(14)
-  pdf.setTextColor(100, 116, 139) // Gray color
+  pdf.setTextColor(100, 116, 139) // slate-500
   pdf.text('Location Intelligence Platform', pageWidth / 2, yPosition + 5, { align: 'center' })
   yPosition += 15
 
   pdf.setFontSize(20)
   pdf.setFont('helvetica', 'bold')
-  pdf.setTextColor(0, 0, 0) // Black color
+  pdf.setTextColor(15, 23, 42) // slate-900
   pdf.text('Investment Opportunity Brief', pageWidth / 2, yPosition + 5, { align: 'center' })
   yPosition += 25
 
@@ -162,8 +165,9 @@ export async function generateInvestmentBrief(data: PDFExportData): Promise<void
   // Key Metrics Section
   pdf.setFontSize(14)
   pdf.setFont('helvetica', 'bold')
-  pdf.setTextColor(0, 0, 0)
+  pdf.setTextColor(15, 23, 42)
   pdf.text('Key Metrics', 20, yPosition)
+  pdf.setDrawColor(6, 95, 70) // emerald-800 underline
   pdf.setLineWidth(0.5)
   pdf.line(20, yPosition + 2, 80, yPosition + 2)
   yPosition += 10
@@ -185,7 +189,6 @@ export async function generateInvestmentBrief(data: PDFExportData): Promise<void
   // Rationale Section
   pdf.setFontSize(14)
   pdf.setFont('helvetica', 'bold')
-  pdf.setTextColor(0, 0, 0)
   pdf.text('Analysis Rationale', 20, yPosition)
   pdf.line(20, yPosition + 2, 90, yPosition + 2)
   yPosition += 10
@@ -204,7 +207,6 @@ export async function generateInvestmentBrief(data: PDFExportData): Promise<void
 
   pdf.setFontSize(14)
   pdf.setFont('helvetica', 'bold')
-  pdf.setTextColor(0, 0, 0)
   pdf.text('Strategy Configuration', 20, yPosition)
   pdf.line(20, yPosition + 2, 100, yPosition + 2)
   yPosition += 10
@@ -227,7 +229,6 @@ export async function generateInvestmentBrief(data: PDFExportData): Promise<void
   if (yPosition < pageHeight - 80) {
     pdf.setFontSize(14)
     pdf.setFont('helvetica', 'bold')
-    pdf.setTextColor(0, 0, 0)
     pdf.text('Strategy Visualization', 20, yPosition)
     pdf.line(20, yPosition + 2, 105, yPosition + 2)
     yPosition += 10
@@ -257,7 +258,6 @@ export async function generateInvestmentBrief(data: PDFExportData): Promise<void
 
       pdf.setFontSize(14)
       pdf.setFont('helvetica', 'bold')
-      pdf.setTextColor(0, 0, 0)
       pdf.text('Location Overview', 20, yPosition)
       pdf.line(20, yPosition + 2, 85, yPosition + 2)
       yPosition += 8
@@ -273,9 +273,10 @@ export async function generateInvestmentBrief(data: PDFExportData): Promise<void
   const footerY = pageHeight - 15
   pdf.setFontSize(8)
   pdf.setFont('helvetica', 'italic')
+  pdf.setTextColor(100, 116, 139) // slate-500
   pdf.text('Generated by UpCode Location Intelligence Platform', pageWidth / 2, footerY, { align: 'center' })
   pdf.text(new Date().toLocaleDateString(), pageWidth / 2, footerY + 5, { align: 'center' })
 
   // Download the PDF
-  pdf.save(`${data.locationName.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_investment_brief.pdf`)
+  pdf.save(`${data.locationName.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_score_breakdown.pdf`)
 }
