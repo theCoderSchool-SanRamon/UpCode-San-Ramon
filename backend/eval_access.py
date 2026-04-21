@@ -12,7 +12,7 @@ _isochrone_url = "https://api.mapbox.com/isochrone/v1/mapbox/driving-traffic/"
 from dotenv import load_dotenv
 load_dotenv()
 
-_mapbox_key = os.environ.get("MAPBOX_KEY")
+_mapbox_key = os.environ.get("MAPBOX_TOKEN")
 
 def evaluate(context):
     response = requests.get(
