@@ -1,9 +1,10 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { ArrowLeft, Calculator, MapPin } from "lucide-react"
+import { ArrowLeft, Calculator, MapPin, Download } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { CandidateLocation, Weights, percent, VISUAL_WEIGHTS } from "@/components/analysis-screen"
+import { generateInvestmentBrief } from "@/lib/pdf-utils"
 import { cn } from "@/lib/utils"
 
 interface LocationDetailProps {
@@ -60,6 +61,19 @@ export function LocationDetailScreen({ location, weights, onBack }: LocationDeta
     setActiveFactor(VISUAL_WEIGHTS[0].key as keyof Weights)
   }, [location.name])
 
+  const handleExportBrief = async () => {
+    await generateInvestmentBrief({
+      locationName: location.name,
+      finalScore: location.score,
+      rationale: location.rationale,
+      weights,
+      rawScores: location.rawScores,
+      estimatedFamilies: location.estimatedFamilies,
+      medianIncome: location.medianIncome,
+      competition: location.competition,
+    })
+  }
+
   return (
     <main className="min-h-screen bg-background px-6 py-8 md:px-10">
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
@@ -71,6 +85,16 @@ export function LocationDetailScreen({ location, weights, onBack }: LocationDeta
         >
           <ArrowLeft className="h-4 w-4" />
           Back to Rankings
+        </Button>
+
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleExportBrief}
+          className="w-fit gap-2"
+        >
+          <Download className="h-4 w-4" />
+          Export Brief
         </Button>
 
         <header className="overflow-hidden rounded-2xl border border-border bg-card p-6 shadow-sm md:p-8">
