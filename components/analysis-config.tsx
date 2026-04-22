@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { ArrowLeft, Info, Lock, Play, Unlock } from "lucide-react"
 import { priorities, presets, type Priority } from "@/lib/data"
 import type { Weights } from "@/lib/analysis"
@@ -55,6 +55,36 @@ export function AnalysisConfig({
     }
   })
   const [activePreset, setActivePreset] = useState<string>("default")
+
+  useEffect(() => {
+    if (typeof window === "undefined") return
+
+    try {
+      const savedWeights = window.localStorage.getItem("coderSchoolWeights")
+      const savedPreset = window.localStorage.getItem("coderSchoolPreset")
+
+      if (savedWeights) {
+        setWeights(JSON.parse(savedWeights) as WeightMap)
+      }
+
+      if (savedPreset) {
+        setActivePreset(JSON.parse(savedPreset) as string)
+      }
+    } catch (error) {
+      console.error("Failed to hydrate saved analysis config:", error)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (typeof window === "undefined") return
+
+    try {
+      window.localStorage.setItem("coderSchoolWeights", JSON.stringify(weights))
+      window.localStorage.setItem("coderSchoolPreset", JSON.stringify(activePreset))
+    } catch (error) {
+      console.error("Failed to persist analysis config:", error)
+    }
+  }, [weights, activePreset])
 
   const totalWeight = Object.values(weights).reduce((sum, w) => sum + w.value, 0)
   const isBalanced = Math.abs(totalWeight - 1) < 0.005
