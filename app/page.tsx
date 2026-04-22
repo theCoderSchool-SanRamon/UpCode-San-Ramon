@@ -8,7 +8,12 @@ import { LocationComparisonScreen } from "@/components/location-comparison-scree
 import { LocationDetailScreen } from "@/components/location-detail"
 import { USMap } from "@/components/us-map"
 import { Button } from "@/components/ui/button"
-import type { CandidateLocation, Weights } from "@/lib/analysis"
+import {
+  normalizeCandidateLocation,
+  normalizeCandidateLocations,
+  type CandidateLocation,
+  type Weights,
+} from "@/lib/analysis"
 import { usStates } from "@/lib/data"
 import { cn } from "@/lib/utils"
 
@@ -27,8 +32,22 @@ const DEFAULT_WEIGHTS: Weights = {
   accessibility: 0.1,
 }
 
+const APP_STATE_STORAGE_KEY = "coderSchoolAppState"
+
+type PageStep = "map" | "config" | "analysis" | "comparison" | "detail"
+
+type PersistedAppState = {
+  step: PageStep
+  weights: Weights
+  selectedState: string | null
+  selectedCity: AutocompleteResult | null
+  locations: AutocompleteResult[]
+  analysisResults: CandidateLocation[]
+  detailLocation: CandidateLocation | null
+}
+
 export default function HomePage() {
-  const [step, setStep] = useState<"map" | "config" | "analysis" | "comparison" | "detail">("map")
+  const [step, setStep] = useState<PageStep>("map")
   const [weights, setWeights] = useState<Weights>(DEFAULT_WEIGHTS)
   const [selectedState, setSelectedState] = useState<string | null>(null)
   const [selectedCity, setSelectedCity] = useState<AutocompleteResult | null>(null)
@@ -42,8 +61,73 @@ export default function HomePage() {
   const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false)
   const [showSuggestions, setShowSuggestions] = useState(false)
   const [highlightIndex, setHighlightIndex] = useState(-1)
+  const [hasHydratedState, setHasHydratedState] = useState(false)
   const searchWrapperRef = useRef<HTMLDivElement>(null)
   const suggestionItemRefs = useRef<Array<HTMLLIElement | null>>([])
+
+  useEffect(() => {
+    if (typeof window === "undefined") return
+
+    try {
+      const savedState = window.localStorage.getItem(APP_STATE_STORAGE_KEY)
+      if (!savedState) {
+        setHasHydratedState(true)
+        return
+      }
+
+      const parsed = JSON.parse(savedState) as Partial<PersistedAppState>
+      const validSteps: PageStep[] = ["map", "config", "analysis", "comparison", "detail"]
+
+      if (parsed.step && validSteps.includes(parsed.step)) {
+        setStep(parsed.step)
+      }
+
+      if (parsed.weights) {
+        setWeights(parsed.weights)
+      }
+
+      setSelectedState(parsed.selectedState ?? null)
+      setSelectedCity(parsed.selectedCity ?? null)
+      setLocations(Array.isArray(parsed.locations) ? parsed.locations : [])
+      setAnalysisResults(normalizeCandidateLocations(parsed.analysisResults))
+      setDetailLocation(
+        parsed.detailLocation ? normalizeCandidateLocation(parsed.detailLocation) : null
+      )
+    } catch (error) {
+      console.error("Failed to hydrate saved page state:", error)
+    } finally {
+      setHasHydratedState(true)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !hasHydratedState) return
+
+    try {
+      const nextState: PersistedAppState = {
+        step,
+        weights,
+        selectedState,
+        selectedCity,
+        locations,
+        analysisResults,
+        detailLocation,
+      }
+
+      window.localStorage.setItem(APP_STATE_STORAGE_KEY, JSON.stringify(nextState))
+    } catch (error) {
+      console.error("Failed to persist page state:", error)
+    }
+  }, [
+    analysisResults,
+    detailLocation,
+    hasHydratedState,
+    locations,
+    selectedCity,
+    selectedState,
+    step,
+    weights,
+  ])
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -317,6 +401,10 @@ export default function HomePage() {
   function handleSelectLocation(location: CandidateLocation) {
     setDetailLocation(location)
     setStep("detail")
+  }
+
+  if (!hasHydratedState) {
+    return null
   }
 
   if (step === "config") {
