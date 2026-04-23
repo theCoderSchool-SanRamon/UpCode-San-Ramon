@@ -223,33 +223,39 @@ export function AnalysisConfig({
             <p className="text-sm italic leading-6 text-slate-500">{presetDescription}</p>
           </div>
 
-          <div className="flex items-center justify-between rounded-2xl border border-emerald-800 bg-white px-4 py-3">
-            <span className="text-sm font-medium text-slate-600">Total Weight</span>
-            <span
-              className={cn(
-                "font-mono text-lg font-semibold",
-                isBalanced ? "text-emerald-700" : "text-destructive"
-              )}
-            >
-              {(totalWeight * 100).toFixed(0)}%
-            </span>
-          </div>
+          <div className="grid gap-6 lg:grid-cols-[minmax(320px,0.95fr)_minmax(0,1.35fr)] lg:items-start">
+            <div className="lg:sticky lg:top-6">
+              <WeightRadar weights={normalizedWeights} />
+            </div>
 
-          <WeightRadar weights={normalizedWeights} />
+            <div className="space-y-5">
+              <div className="flex items-center justify-between rounded-2xl border border-emerald-800 bg-white px-4 py-3">
+                <span className="text-sm font-medium text-slate-600">Total Weight</span>
+                <span
+                  className={cn(
+                    "font-mono text-lg font-semibold",
+                    isBalanced ? "text-emerald-700" : "text-destructive"
+                  )}
+                >
+                  {(totalWeight * 100).toFixed(0)}%
+                </span>
+              </div>
 
-          <div className="flex flex-col gap-5">
-            {priorities.map((priority) => (
-              <PrioritySlider
-                key={priority.id}
-                priority={priority}
-                value={weights[priority.id as WeightKey].value}
-                locked={weights[priority.id as WeightKey].locked}
-                onValueChange={(values) =>
-                  handleSliderChange(priority.id as WeightKey, values)
-                }
-                onLockToggle={() => handleLockToggle(priority.id as WeightKey)}
-              />
-            ))}
+              <div className="flex flex-col gap-5">
+                {priorities.map((priority) => (
+                  <PrioritySlider
+                    key={priority.id}
+                    priority={priority}
+                    value={weights[priority.id as WeightKey].value}
+                    locked={weights[priority.id as WeightKey].locked}
+                    onValueChange={(values) =>
+                      handleSliderChange(priority.id as WeightKey, values)
+                    }
+                    onLockToggle={() => handleLockToggle(priority.id as WeightKey)}
+                  />
+                ))}
+              </div>
+            </div>
           </div>
 
           <div className="border-t border-emerald-800 pt-6">
