@@ -96,7 +96,7 @@ export async function generateInvestmentBrief(data: PDFExportData): Promise<void
 
   pdf.setDrawColor(203, 213, 225)
   pdf.setFillColor(248, 250, 252)
-  pdf.roundedRect(marginX, yPosition, contentWidth, 28, 2, 2, 'FD')
+  pdf.roundedRect(marginX, yPosition, contentWidth, 36, 2, 2, 'FD')
 
   addSectionTitle(pdf, 'Key Metrics', marginX + 4, yPosition + 8, 32)
 
@@ -109,11 +109,11 @@ export async function generateInvestmentBrief(data: PDFExportData): Promise<void
     `Competition Level: ${data.competition}`
   ]
 
-  const metricY = yPosition + 18
+  const metricY = yPosition + 20
   metrics.forEach((metric, index) => {
-    pdf.text(metric, marginX + 6, metricY + index * 5.2)
+    pdf.text(metric, marginX + 6, metricY + index * 6)
   })
-  yPosition += 38
+  yPosition += 48
 
   addSectionTitle(pdf, 'Analysis Rationale', marginX, yPosition, 42)
   yPosition += 10
@@ -123,7 +123,7 @@ export async function generateInvestmentBrief(data: PDFExportData): Promise<void
   pdf.setTextColor(55, 65, 81)
   const rationaleLines = pdf.splitTextToSize(data.rationale, contentWidth)
   pdf.text(rationaleLines, marginX, yPosition)
-  yPosition += rationaleLines.length * 5 + 12
+  yPosition += rationaleLines.length * 5 + 18
 
   if (yPosition > pageHeight - 60) {
     pdf.addPage()
