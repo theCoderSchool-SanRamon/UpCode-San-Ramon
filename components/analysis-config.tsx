@@ -156,7 +156,7 @@ export function AnalysisConfig({
   const activePresetConfig = presets.find((preset) => preset.id === activePreset)
   const presetDescription = activePresetConfig
     ? activePresetConfig.description
-    : "Custom mix based on your current slider adjustments and any locked factors."
+    : "Choose a preset to get set slider adjustments for different prospectives."
   const normalizedWeights: Weights = {
     wealth: weights.wealth.value,
     family: weights.family.value,
@@ -166,7 +166,7 @@ export function AnalysisConfig({
   }
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(16,185,129,0.14),_transparent_26%),linear-gradient(180deg,#f8fbfa_0%,#eef4f2_52%,#f7faf8_100%)] px-6 py-8 md:px-8 md:py-10">
+    <div className="min-h-screen bg-white px-6 py-8 md:px-8 md:py-10">
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
         <section className="overflow-hidden rounded-[28px] border border-emerald-900/15 bg-white/90 shadow-[0_24px_80px_-36px_rgba(15,23,42,0.45)] backdrop-blur">
           <div className="grid gap-6 px-6 py-6 md:px-8 md:py-8 lg:grid-cols-[1.5fr_0.8fr] lg:items-start">
@@ -179,7 +179,7 @@ export function AnalysisConfig({
               </h1>
               <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-600 md:text-base">
                 Shape how theCoderSchool Market Lens ranks each opportunity by adjusting
-                the factors that matter most for your next market.
+                the factors that matter most for your next location.
               </p>
             </div>
 
@@ -195,17 +195,6 @@ export function AnalysisConfig({
                   Back to Location
                 </Button>
               )}
-              <div className="flex items-center justify-between rounded-2xl border border-emerald-900/10 bg-white px-4 py-4">
-                <span className="text-sm font-medium text-slate-600">Total Weight</span>
-                <span
-                  className={cn(
-                    "font-mono text-lg font-semibold",
-                    isBalanced ? "text-emerald-700" : "text-destructive"
-                  )}
-                >
-                  {(totalWeight * 100).toFixed(0)}%
-                </span>
-              </div>
               <div className="rounded-2xl border border-emerald-900/10 bg-white px-4 py-3">
                 <div className="flex items-start gap-3">
                   <Info className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" />
@@ -245,16 +234,25 @@ export function AnalysisConfig({
               </div>
               <p className="mt-4 text-sm leading-6 text-slate-500">{presetDescription}</p>
             </div>
+
+            <div className="flex items-center justify-between rounded-[28px] border border-slate-200/80 bg-white/90 px-5 py-4 shadow-[0_18px_48px_-30px_rgba(15,23,42,0.4)] backdrop-blur">
+              <span className="text-sm font-medium text-slate-600">Total Weight</span>
+              <span
+                className={cn(
+                  "font-mono text-lg font-semibold",
+                  isBalanced ? "text-emerald-700" : "text-destructive"
+                )}
+              >
+                {(totalWeight * 100).toFixed(0)}%
+              </span>
+            </div>
           </div>
 
           <div className="rounded-[28px] border border-slate-200/80 bg-white/92 p-6 shadow-[0_24px_72px_-36px_rgba(15,23,42,0.42)] backdrop-blur md:p-7">
             <div className="flex items-center justify-between gap-3">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">
-                  Weight Controls
-                </p>
                 <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">
-                  Fine-tune your strategy
+                  Weight Controls
                 </h2>
               </div>
             </div>

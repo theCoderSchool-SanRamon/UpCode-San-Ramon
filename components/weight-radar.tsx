@@ -31,9 +31,6 @@ export function WeightRadar({ weights }: { weights: Weights }) {
   return (
     <div className="overflow-hidden rounded-[28px] border border-emerald-900/15 bg-[radial-gradient(circle_at_top,#ecfdf5_0%,#ffffff_58%)] shadow-[0_24px_72px_-36px_rgba(15,23,42,0.42)]">
       <div className="border-b border-emerald-900/10 px-5 py-4">
-        <p className="text-xs font-semibold uppercase tracking-[0.22em] text-emerald-700">
-          Live Weight Shape
-        </p>
         <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">
           Weight Radar
         </h2>
