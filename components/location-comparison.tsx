@@ -92,7 +92,7 @@ export function LocationComparisonView({ locations }: LocationComparisonProps) {
             className="gap-2"
           >
             <Download className="h-4 w-4" />
-            Export Selected PDF
+            Export PDF for Selected Cities
           </Button>
         </div>
 
