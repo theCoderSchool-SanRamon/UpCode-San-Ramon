@@ -29,10 +29,20 @@ export function WeightRadar({ weights }: { weights: Weights }) {
   const weightValues = VISUAL_WEIGHTS.map((item) => weights[item.key as keyof Weights])
 
   return (
-    <div className="rounded-2xl border border-emerald-800 bg-white p-5 shadow-sm">
-      <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-600">
-        Weight Radar
-      </h2>
+    <div className="overflow-hidden rounded-[28px] border border-emerald-900/15 bg-[radial-gradient(circle_at_top,#ecfdf5_0%,#ffffff_58%)] shadow-[0_24px_72px_-36px_rgba(15,23,42,0.42)]">
+      <div className="border-b border-emerald-900/10 px-5 py-4">
+        <p className="text-xs font-semibold uppercase tracking-[0.22em] text-emerald-700">
+          Live Weight Shape
+        </p>
+        <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">
+          Weight Radar
+        </h2>
+        <p className="mt-2 text-sm leading-6 text-slate-600">
+          A live view of how your priorities are balanced across wealth, family,
+          education, competition, and accessibility.
+        </p>
+      </div>
+
       <div className="mt-4 flex items-center justify-center">
         <svg viewBox="0 0 240 240" className="h-56 w-56">
           {[0.25, 0.5, 0.75, 1].map((level) => (
@@ -84,12 +94,17 @@ export function WeightRadar({ weights }: { weights: Weights }) {
         </svg>
       </div>
 
-      <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
+      <div className="grid grid-cols-2 gap-2 px-5 pb-5 text-xs">
         {VISUAL_WEIGHTS.map((item) => (
-          <div key={item.key} className="flex items-center gap-2 rounded-md border border-slate-200 px-2 py-1.5">
+          <div
+            key={item.key}
+            className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white/90 px-3 py-2 shadow-sm"
+          >
             <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: item.color }} />
             <span className="text-slate-600">{item.label}</span>
-            <span className="ml-auto font-semibold text-slate-900">{percent(weights[item.key as keyof Weights])}%</span>
+            <span className="ml-auto font-semibold text-slate-900">
+              {percent(weights[item.key as keyof Weights])}%
+            </span>
           </div>
         ))}
       </div>

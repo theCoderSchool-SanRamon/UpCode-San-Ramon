@@ -166,70 +166,36 @@ export function AnalysisConfig({
   }
 
   return (
-    <div className="min-h-screen bg-white px-6 py-8 md:px-8">
-      <div className="mx-auto max-w-4xl rounded-3xl border border-emerald-800 bg-white shadow-sm">
-        <div className="border-b border-emerald-800 px-6 py-5 md:px-8">
-          <div className="flex items-center gap-4">
+    <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(16,185,129,0.14),_transparent_26%),linear-gradient(180deg,#f8fbfa_0%,#eef4f2_52%,#f7faf8_100%)] px-6 py-8 md:px-8 md:py-10">
+      <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
+        <section className="overflow-hidden rounded-[28px] border border-emerald-900/15 bg-white/90 shadow-[0_24px_80px_-36px_rgba(15,23,42,0.45)] backdrop-blur">
+          <div className="grid gap-6 px-6 py-6 md:px-8 md:py-8 lg:grid-cols-[1.5fr_0.8fr] lg:items-start">
             <div>
-              <h1 className="text-3xl font-bold tracking-tight text-slate-900 md:text-4xl">
+              <p className="text-xs font-semibold uppercase tracking-[0.28em] text-emerald-700">
+                Strategy Setup
+              </p>
+              <h1 className="mt-3 text-3xl font-bold tracking-tight text-slate-900 md:text-5xl">
                 Choose your preferences
               </h1>
-              <p className="mt-2 text-sm text-slate-600">
-                Set the five factors that drive your recommendation results.
+              <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-600 md:text-base">
+                Shape how theCoderSchool Market Lens ranks each opportunity by adjusting
+                the factors that matter most for your next market.
               </p>
             </div>
-            {onBack && (
-              <Button
-                onClick={onBack}
-                variant="outline"
-                size="sm"
-                className="ml-auto gap-1.5 border-emerald-800 bg-white text-emerald-900 hover:bg-emerald-50"
-              >
-                <ArrowLeft className="h-3.5 w-3.5" />
-                Back to Location
-              </Button>
-            )}
-          </div>
-        </div>
 
-        <div className="space-y-6 px-6 py-6 md:px-8">
-          <div className="rounded-2xl border border-emerald-800 bg-emerald-50 p-4">
-            <div className="flex items-start gap-3">
-              <Info className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" />
-              <p className="text-sm leading-6 text-emerald-900">
-                Drag sliders to rebalance your factors. Lock any value before adjusting
-                the others and the remaining unlocked factors will auto-balance.
-              </p>
-            </div>
-          </div>
-
-          <div className="space-y-3">
-            <div className="flex flex-wrap gap-2">
-              {presets.map((preset) => (
-                <button
-                  key={preset.id}
-                  onClick={() => applyPreset(preset.id)}
-                  className={cn(
-                    "rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors",
-                    activePreset === preset.id
-                      ? "border-emerald-800 bg-emerald-800 text-white"
-                      : "border-emerald-800 bg-white text-slate-700 hover:border-emerald-500 hover:bg-emerald-50"
-                  )}
+            <div className="flex flex-col gap-3 rounded-3xl border border-emerald-900/10 bg-gradient-to-br from-emerald-50 to-white p-5">
+              {onBack && (
+                <Button
+                  onClick={onBack}
+                  variant="outline"
+                  size="sm"
+                  className="w-fit gap-1.5 border-emerald-800 bg-white text-emerald-900 hover:bg-emerald-50"
                 >
-                  {preset.label}
-                </button>
-              ))}
-            </div>
-            <p className="text-sm italic leading-6 text-slate-500">{presetDescription}</p>
-          </div>
-
-          <div className="grid gap-6 lg:grid-cols-[minmax(320px,0.95fr)_minmax(0,1.35fr)] lg:items-start">
-            <div className="lg:sticky lg:top-6">
-              <WeightRadar weights={normalizedWeights} />
-            </div>
-
-            <div className="space-y-5">
-              <div className="flex items-center justify-between rounded-2xl border border-emerald-800 bg-white px-4 py-3">
+                  <ArrowLeft className="h-3.5 w-3.5" />
+                  Back to Location
+                </Button>
+              )}
+              <div className="flex items-center justify-between rounded-2xl border border-emerald-900/10 bg-white px-4 py-4">
                 <span className="text-sm font-medium text-slate-600">Total Weight</span>
                 <span
                   className={cn(
@@ -240,46 +206,97 @@ export function AnalysisConfig({
                   {(totalWeight * 100).toFixed(0)}%
                 </span>
               </div>
-
-              <div className="flex flex-col gap-5">
-                {priorities.map((priority) => (
-                  <PrioritySlider
-                    key={priority.id}
-                    priority={priority}
-                    value={weights[priority.id as WeightKey].value}
-                    locked={weights[priority.id as WeightKey].locked}
-                    onValueChange={(values) =>
-                      handleSliderChange(priority.id as WeightKey, values)
-                    }
-                    onLockToggle={() => handleLockToggle(priority.id as WeightKey)}
-                  />
-                ))}
+              <div className="rounded-2xl border border-emerald-900/10 bg-white px-4 py-3">
+                <div className="flex items-start gap-3">
+                  <Info className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" />
+                  <p className="text-sm leading-6 text-slate-600">
+                    Drag sliders to rebalance your factors. Lock any value before adjusting
+                    the others and the remaining unlocked factors will auto-balance.
+                  </p>
+                </div>
               </div>
             </div>
           </div>
+        </section>
 
-          <div className="border-t border-emerald-800 pt-6">
-            <Button
-              onClick={handleContinue}
-              disabled={!isBalanced || isSubmitting}
-              className="w-full gap-2 bg-emerald-800 text-white hover:bg-emerald-900"
-              size="lg"
-            >
-              <Play className="h-4 w-4" />
-              {continueLabel}
-            </Button>
-            {!isBalanced && (
-              <p className="mt-2 text-center text-xs text-destructive">
-                Weights must sum to 100% before continuing.
+        <section className="grid gap-6 lg:grid-cols-[minmax(340px,0.9fr)_minmax(0,1.3fr)] lg:items-start">
+          <div className="space-y-6 lg:sticky lg:top-6">
+            <WeightRadar weights={normalizedWeights} />
+
+            <div className="rounded-[28px] border border-slate-200/80 bg-white/90 p-5 shadow-[0_18px_48px_-30px_rgba(15,23,42,0.4)] backdrop-blur">
+              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">
+                Presets
               </p>
-            )}
-            {errorMessage && (
-              <p className="mt-2 text-center text-xs text-destructive">
-                {errorMessage}
-              </p>
-            )}
+              <div className="mt-4 flex flex-wrap gap-2">
+                {presets.map((preset) => (
+                  <button
+                    key={preset.id}
+                    onClick={() => applyPreset(preset.id)}
+                    className={cn(
+                      "rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors",
+                      activePreset === preset.id
+                        ? "border-emerald-800 bg-emerald-800 text-white"
+                        : "border-slate-300 bg-white text-slate-700 hover:border-emerald-500 hover:bg-emerald-50"
+                    )}
+                  >
+                    {preset.label}
+                  </button>
+                ))}
+              </div>
+              <p className="mt-4 text-sm leading-6 text-slate-500">{presetDescription}</p>
+            </div>
           </div>
-        </div>
+
+          <div className="rounded-[28px] border border-slate-200/80 bg-white/92 p-6 shadow-[0_24px_72px_-36px_rgba(15,23,42,0.42)] backdrop-blur md:p-7">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">
+                  Weight Controls
+                </p>
+                <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">
+                  Fine-tune your strategy
+                </h2>
+              </div>
+            </div>
+
+            <div className="mt-6 flex flex-col gap-5">
+              {priorities.map((priority) => (
+                <PrioritySlider
+                  key={priority.id}
+                  priority={priority}
+                  value={weights[priority.id as WeightKey].value}
+                  locked={weights[priority.id as WeightKey].locked}
+                  onValueChange={(values) =>
+                    handleSliderChange(priority.id as WeightKey, values)
+                  }
+                  onLockToggle={() => handleLockToggle(priority.id as WeightKey)}
+                />
+              ))}
+            </div>
+
+            <div className="mt-8 border-t border-slate-200 pt-6">
+              <Button
+                onClick={handleContinue}
+                disabled={!isBalanced || isSubmitting}
+                className="w-full gap-2 bg-emerald-800 text-white hover:bg-emerald-900"
+                size="lg"
+              >
+                <Play className="h-4 w-4" />
+                {continueLabel}
+              </Button>
+              {!isBalanced && (
+                <p className="mt-2 text-center text-xs text-destructive">
+                  Weights must sum to 100% before continuing.
+                </p>
+              )}
+              {errorMessage && (
+                <p className="mt-2 text-center text-xs text-destructive">
+                  {errorMessage}
+                </p>
+              )}
+            </div>
+          </div>
+        </section>
       </div>
     </div>
   )
@@ -303,15 +320,15 @@ function PrioritySlider({
   const percentage = Math.round(value * 100)
 
   return (
-    <div className="rounded-2xl border border-emerald-800 bg-white p-4">
+    <div className="rounded-3xl border border-slate-200 bg-[linear-gradient(180deg,#ffffff_0%,#fbfdfc_100%)] p-5 shadow-[0_10px_30px_-24px_rgba(15,23,42,0.5)]">
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1">
           <p className="text-sm font-semibold text-slate-900">{priority.name}</p>
-          <p className="mt-1 text-xs leading-5 text-slate-500">{priority.purpose}</p>
+          <p className="mt-1 text-xs leading-6 text-slate-500">{priority.purpose}</p>
         </div>
         <div className="flex items-center gap-2">
           <span
-            className="min-w-[3.25rem] justify-center border border-emerald-800 bg-emerald-50 font-mono text-xs text-emerald-900 inline-flex items-center px-2.5 py-0.5 rounded-full"
+            className="inline-flex min-w-[3.25rem] items-center justify-center rounded-full border border-emerald-800 bg-emerald-50 px-2.5 py-0.5 font-mono text-xs text-emerald-900"
           >
             {percentage}%
           </span>
