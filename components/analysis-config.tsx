@@ -186,7 +186,7 @@ export function AnalysisConfig({
               </p>
             </div>
 
-            <div className="flex flex-col gap-3 rounded-3xl border border-emerald-900/10 p-5">
+            <div className="flex justify-end">
               {onBack && (
                 <Button
                   onClick={onBack}
