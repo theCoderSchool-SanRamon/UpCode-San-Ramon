@@ -88,7 +88,7 @@ export async function GET(request: Request) {
   try {
     const response = await fetch(`https://photon.komoot.io/api/?${params}`, {
       headers: {
-        "User-Agent": "UpCode-Project/1.0",
+        "User-Agent": "theCoderSchool-Market-Lens/1.0",
       },
       cache: "no-store",
     })

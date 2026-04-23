@@ -3,9 +3,9 @@ import type { Metadata, Viewport } from "next"
 import "./globals.css"
 
 export const metadata: Metadata = {
-  title: "theCoderSchool",
+  title: "theCoderSchool Market Lens",
   description:
-    "Evaluate theCoderSchool franchise expansion locations across the United States.",
+    "Use theCoderSchool Market Lens to evaluate franchise expansion opportunities across the United States.",
 }
 
 export const viewport: Viewport = {
