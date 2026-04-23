@@ -24,100 +24,6 @@ function sanitizeFilenamePart(value: string): string {
     .toLowerCase()
 }
 
-function generateRadarSVG(weights: PDFExportData['weights']): string {
-  const size = 200
-  const cx = size / 2
-  const cy = size / 2
-  const radius = 80
-
-  const weightValues = [weights.wealth, weights.family, weights.education, weights.competition, weights.accessibility]
-  // Updated to an emerald-focused, cohesive color palette
-  const colors = ['#065f46', '#10b981', '#f59e0b', '#ef4444', '#0f766e']
-
-  let svg = `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg">`
-
-  // Background circles
-  ;[0.25, 0.5, 0.75, 1].forEach(level => {
-    const r = radius * level
-    const points = Array.from({ length: 5 }).map((_, i) => {
-      const angle = -Math.PI / 2 + (Math.PI * 2 * i) / 5
-      const x = cx + Math.cos(angle) * r
-      const y = cy + Math.sin(angle) * r
-      return `${x},${y}`
-    }).join(' ')
-    svg += `<polygon points="${points}" fill="none" stroke="#e2e8f0" stroke-width="1"/>`
-  })
-
-  // Axis lines
-  Array.from({ length: 5 }).forEach((_, i) => {
-    const angle = -Math.PI / 2 + (Math.PI * 2 * i) / 5
-    const x = cx + Math.cos(angle) * radius
-    const y = cy + Math.sin(angle) * radius
-    svg += `<line x1="${cx}" y1="${cy}" x2="${x}" y2="${y}" stroke="#e2e8f0" stroke-width="1"/>`
-  })
-
-  // Radar shape (Updated to Emerald)
-  const radarPoints = weightValues.map((value, i) => {
-    const angle = -Math.PI / 2 + (Math.PI * 2 * i) / 5
-    const x = cx + Math.cos(angle) * radius * value
-    const y = cy + Math.sin(angle) * radius * value
-    return `${x},${y}`
-  }).join(' ')
-
-  // fill: emerald-500 (20% opacity), stroke: emerald-600
-  svg += `<polygon points="${radarPoints}" fill="rgba(16, 185, 129, 0.2)" stroke="#059669" stroke-width="2"/>`
-
-  // Data points and lines
-  weightValues.forEach((value, i) => {
-    const angle = -Math.PI / 2 + (Math.PI * 2 * i) / 5
-    const x = cx + Math.cos(angle) * radius * value
-    const y = cy + Math.sin(angle) * radius * value
-    const outerX = cx + Math.cos(angle) * radius
-    const outerY = cy + Math.sin(angle) * radius
-
-    svg += `<line x1="${cx}" y1="${cy}" x2="${x}" y2="${y}" stroke="${colors[i]}" stroke-width="2" stroke-linecap="round"/>`
-    svg += `<circle cx="${x}" cy="${y}" r="4" fill="${colors[i]}"/>`
-    svg += `<circle cx="${outerX}" cy="${outerY}" r="2" fill="${colors[i]}" opacity="0.45"/>`
-  })
-
-  svg += '</svg>'
-  return svg
-}
-
-async function addRadarChartToPDF(pdf: jsPDF, weights: PDFExportData['weights'], x: number, y: number): Promise<void> {
-  try {
-    const radarSvg = generateRadarSVG(weights)
-    const canvas = document.createElement('canvas')
-    canvas.width = 200
-    canvas.height = 200
-    const ctx = canvas.getContext('2d')
-
-    if (ctx) {
-      const img = new Image()
-      const svgBlob = new Blob([radarSvg], { type: 'image/svg+xml' })
-      const url = URL.createObjectURL(svgBlob)
-
-      await new Promise<void>((resolve) => {
-        img.onload = () => {
-          ctx.drawImage(img, 0, 0)
-          URL.revokeObjectURL(url)
-          resolve()
-        }
-        img.src = url
-      })
-
-      const imgData = canvas.toDataURL('image/png')
-      pdf.addImage(imgData, 'PNG', x, y, 60, 60)
-    }
-  } catch (error) {
-    console.error('Failed to generate radar chart:', error)
-    // Fallback: just add text
-    pdf.setFont('helvetica', 'italic')
-    pdf.setFontSize(10)
-    pdf.text('Strategy visualization not available', x, y + 30)
-  }
-}
-
 function addFooter(pdf: jsPDF): void {
   const pageWidth = pdf.internal.pageSize.getWidth()
   const pageHeight = pdf.internal.pageSize.getHeight()
@@ -140,38 +46,18 @@ function addSectionTitle(pdf: jsPDF, title: string, x: number, y: number, lineWi
   pdf.line(x, y + 2, x + lineWidth, y + 2)
 }
 
-function addMapUnavailableCard(pdf: jsPDF, x: number, y: number, width: number, height: number, locationName: string): void {
-  pdf.setFillColor(248, 250, 252)
-  pdf.setDrawColor(203, 213, 225)
-  pdf.roundedRect(x, y, width, height, 3, 3, 'FD')
-  pdf.setFont('helvetica', 'bold')
-  pdf.setFontSize(12)
-  pdf.setTextColor(15, 23, 42)
-  pdf.text(locationName, x + 6, y + 12)
-  pdf.setFont('helvetica', 'normal')
-  pdf.setFontSize(10)
-  pdf.setTextColor(100, 116, 139)
-  const lines = pdf.splitTextToSize(
-    'Map preview was unavailable during export, but this brief still reserves the location overview section.',
-    width - 12
-  )
-  pdf.text(lines, x + 6, y + 22)
-}
-
 export async function generateInvestmentBrief(data: PDFExportData): Promise<void> {
   const pdf = new jsPDF('p', 'mm', 'a4')
   const pageWidth = pdf.internal.pageSize.getWidth()
   const pageHeight = pdf.internal.pageSize.getHeight()
   let yPosition = 20
 
-  // Header box (Updated to Emerald Theme)
-  pdf.setFillColor(236, 253, 245) // emerald-50
+  pdf.setFillColor(236, 253, 245)
   pdf.rect(10, 10, pageWidth - 20, 50, 'F')
-  pdf.setDrawColor(6, 95, 70) // emerald-800 border
+  pdf.setDrawColor(6, 95, 70) 
   pdf.setLineWidth(1)
   pdf.rect(10, 10, pageWidth - 20, 50)
 
-  // Header with branding
   pdf.setFontSize(28)
   pdf.setFont('helvetica', 'bold')
   pdf.setTextColor(6, 95, 70) // emerald-800 text
@@ -184,7 +70,6 @@ export async function generateInvestmentBrief(data: PDFExportData): Promise<void
   pdf.text('Investment Opportunity Brief', pageWidth / 2, yPosition + 5, { align: 'center' })
   yPosition += 25
 
-  // Location and Score
   pdf.setFontSize(18)
   pdf.setFont('helvetica', 'bold')
   pdf.text(data.locationName, pageWidth / 2, yPosition, { align: 'center' })
@@ -193,7 +78,7 @@ export async function generateInvestmentBrief(data: PDFExportData): Promise<void
   pdf.setFontSize(14)
   pdf.setFont('helvetica', 'normal')
   pdf.text(`Final Score: ${data.finalScore}/100`, pageWidth / 2, yPosition, { align: 'center' })
-  yPosition += 20
+  yPosition += 40
 
   // Key Metrics Section
   pdf.setFontSize(14)
@@ -257,56 +142,6 @@ export async function generateInvestmentBrief(data: PDFExportData): Promise<void
     yPosition += 6
   })
   yPosition += 20
-
-  // Add Radar Chart
-  if (yPosition > pageHeight - 90) {
-    pdf.addPage()
-    yPosition = 20
-  }
-
-  addSectionTitle(pdf, 'Strategy Visualization', 20, yPosition, 85)
-  yPosition += 10
-  await addRadarChartToPDF(pdf, data.weights, 20, yPosition)
-  yPosition += 70
-
-  // Capture and add map section regardless of remaining space
-  if (yPosition > pageHeight - 90) {
-    pdf.addPage()
-    yPosition = 20
-  }
-
-  addSectionTitle(pdf, 'Location Overview', 20, yPosition, 65)
-  yPosition += 8
-
-  if (data.mapElement) {
-    try {
-      const mapCanvas = await html2canvas(data.mapElement, {
-        scale: 1,
-        useCORS: true,
-        allowTaint: true,
-        backgroundColor: '#ffffff'
-      })
-
-      const imgData = mapCanvas.toDataURL('image/png')
-      const imgWidth = 80
-      const imgHeight = (mapCanvas.height * imgWidth) / mapCanvas.width
-
-      if (yPosition + imgHeight > pageHeight - 20) {
-        pdf.addPage()
-        yPosition = 20
-      }
-
-      pdf.addImage(imgData, 'PNG', 20, yPosition, imgWidth, imgHeight)
-      yPosition += imgHeight + 10
-    } catch (error) {
-      console.error('Failed to capture map:', error)
-      addMapUnavailableCard(pdf, 20, yPosition, pageWidth - 40, 45, data.locationName)
-      yPosition += 55
-    }
-  } else {
-    addMapUnavailableCard(pdf, 20, yPosition, pageWidth - 40, 45, data.locationName)
-    yPosition += 55
-  }
 
   addFooter(pdf)
 

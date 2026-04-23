@@ -6,7 +6,7 @@ import { priorities, presets, type Priority } from "@/lib/data"
 import type { Weights } from "@/lib/analysis"
 import { Slider } from "@/components/ui/slider"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
+import { WeightRadar } from "@/components/weight-radar"
 import { cn } from "@/lib/utils"
 
 type WeightKey = keyof Weights
@@ -157,6 +157,13 @@ export function AnalysisConfig({
   const presetDescription = activePresetConfig
     ? activePresetConfig.description
     : "Custom mix based on your current slider adjustments and any locked factors."
+  const normalizedWeights: Weights = {
+    wealth: weights.wealth.value,
+    family: weights.family.value,
+    education: weights.education.value,
+    competition: weights.competition.value,
+    accessibility: weights.accessibility.value,
+  }
 
   return (
     <div className="min-h-screen bg-white px-6 py-8 md:px-8">
@@ -227,6 +234,8 @@ export function AnalysisConfig({
               {(totalWeight * 100).toFixed(0)}%
             </span>
           </div>
+
+          <WeightRadar weights={normalizedWeights} />
 
           <div className="flex flex-col gap-5">
             {priorities.map((priority) => (
