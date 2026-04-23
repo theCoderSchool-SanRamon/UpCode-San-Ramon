@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react"
 import { VISUAL_WEIGHTS } from "./analysis-screen"
-import { Trophy } from "lucide-react"
+import { Download, Trophy } from "lucide-react"
 import {
   Select,
   SelectContent,
@@ -11,6 +11,8 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import type { CandidateLocation } from "@/lib/analysis"
+import { Button } from "@/components/ui/button"
+import { generateComparisonBrief } from "@/lib/pdf-utils"
 
 interface LocationComparisonProps {
   locations: CandidateLocation[]
@@ -66,15 +68,33 @@ export function LocationComparisonView({ locations }: LocationComparisonProps) {
     })
   }
 
+  async function handleExportSelectedComparison() {
+    await generateComparisonBrief(selectedLocations, "Selected Location Comparison")
+  }
+
   return (
     <div className="mt-6 overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
       <div className="border-b border-border bg-muted/30 p-5">
-        <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-          Side-by-Side Comparison
-        </h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Choose how many cities to compare and exactly which cities to show.
-        </p>
+        <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+          <div>
+            <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+              Side-by-Side Comparison
+            </h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Choose how many cities to compare and exactly which cities to show.
+            </p>
+          </div>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleExportSelectedComparison}
+            className="gap-2"
+          >
+            <Download className="h-4 w-4" />
+            Export Selected PDF
+          </Button>
+        </div>
 
         <div className="mt-4 grid gap-3 md:grid-cols-2">
           <div className="space-y-2">

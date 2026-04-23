@@ -1,9 +1,10 @@
 "use client"
 
-import { ArrowLeft } from "lucide-react"
+import { ArrowLeft, Download } from "lucide-react"
 import { LocationComparisonView } from "./location-comparison"
 import { Button } from "@/components/ui/button"
 import type { CandidateLocation } from "@/lib/analysis"
+import { generateComparisonBrief } from "@/lib/pdf-utils"
 
 interface LocationComparisonScreenProps {
   locations: CandidateLocation[]
@@ -14,6 +15,12 @@ export function LocationComparisonScreen({
   locations,
   onBack,
 }: LocationComparisonScreenProps) {
+  const comparableLocations = locations.filter((location) => location.rawScores)
+
+  async function handleExportAllComparisons() {
+    await generateComparisonBrief(comparableLocations, "All Compared Locations")
+  }
+
   return (
     <main className="min-h-screen bg-background px-6 py-8 md:px-10">
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
@@ -28,12 +35,27 @@ export function LocationComparisonScreen({
         </Button>
 
         <header className="rounded-2xl border border-border bg-card p-6 shadow-sm md:p-8">
-          <h1 className="text-3xl font-bold tracking-tight text-foreground md:text-4xl">
-            Side-by-Side Comparison
-          </h1>
-          <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-            Choose how many cities to compare and select the exact markets you want to review.
-          </p>
+          <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+            <div>
+              <h1 className="text-3xl font-bold tracking-tight text-foreground md:text-4xl">
+                Side-by-Side Comparison
+              </h1>
+              <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
+                Choose how many cities to compare and select the exact markets you want to review.
+              </p>
+            </div>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleExportAllComparisons}
+              disabled={comparableLocations.length < 2}
+              className="gap-2"
+            >
+              <Download className="h-4 w-4" />
+              Export PDF
+            </Button>
+          </div>
         </header>
 
         <LocationComparisonView locations={locations} />
