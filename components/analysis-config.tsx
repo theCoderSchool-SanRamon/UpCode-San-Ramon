@@ -180,10 +180,13 @@ export function AnalysisConfig({
               <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-600 md:text-base">
                 Shape how theCoderSchool Market Lens ranks each opportunity by adjusting
                 the factors that matter most for your next location.
+
+                Drag sliders to rebalance your factors. Lock any value before adjusting
+                the others and the remaining unlocked factors will auto-balance.
               </p>
             </div>
 
-            <div className="flex flex-col gap-3 rounded-3xl border border-emerald-900/10 bg-gradient-to-br from-emerald-50 to-white p-5">
+            <div className="flex flex-col gap-3 rounded-3xl border border-emerald-900/10 p-5">
               {onBack && (
                 <Button
                   onClick={onBack}
@@ -195,15 +198,6 @@ export function AnalysisConfig({
                   Back to Location
                 </Button>
               )}
-              <div className="rounded-2xl border border-emerald-900/10 bg-white px-4 py-3">
-                <div className="flex items-start gap-3">
-                  <Info className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" />
-                  <p className="text-sm leading-6 text-slate-600">
-                    Drag sliders to rebalance your factors. Lock any value before adjusting
-                    the others and the remaining unlocked factors will auto-balance.
-                  </p>
-                </div>
-              </div>
             </div>
           </div>
         </section>
