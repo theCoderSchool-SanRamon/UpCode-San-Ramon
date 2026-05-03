@@ -1,7 +1,9 @@
 "use client"
 
+import type { ReactNode } from "react"
 import { useEffect, useRef, useState } from "react"
 import { MapPin, Search, Plus, X } from "lucide-react"
+import { AIChat, type AIChatContext } from "@/components/ai-chat"
 import { AnalysisConfig } from "@/components/analysis-config"
 import { AnalysisScreen } from "@/components/analysis-screen"
 import { LocationComparisonScreen } from "@/components/location-comparison-screen"
@@ -254,7 +256,10 @@ export default function HomePage() {
         }),
       })
 
-      const payload = (await response.json()) as {
+      const contentType = response.headers.get("content-type") || ""
+      const payload = (contentType.includes("application/json")
+        ? await response.json()
+        : { error: await response.text() }) as {
         error?: string
         results?: CandidateLocation[]
       }
@@ -403,12 +408,35 @@ export default function HomePage() {
     setStep("detail")
   }
 
+  const selectedStateName = usStates.find((state) => state.abbr === selectedState)?.name
+
+  function renderWithChat(content: ReactNode) {
+    const chatContext: AIChatContext = {
+      step,
+      weights,
+      selectedState,
+      selectedStateName,
+      selectedLocations: locations,
+      currentSearchQuery: query,
+      visibleSearchSuggestions: suggestions,
+      analysisResults,
+      detailLocation,
+    }
+
+    return (
+      <>
+        {content}
+        <AIChat context={chatContext} />
+      </>
+    )
+  }
+
   if (!hasHydratedState) {
     return null
   }
 
   if (step === "config") {
-    return (
+    return renderWithChat(
       <AnalysisConfig
         initialWeights={weights}
         onContinue={handleSubmitPreferences}
@@ -424,7 +452,7 @@ export default function HomePage() {
   }
 
   if (step === "analysis") {
-    return (
+    return renderWithChat(
       <AnalysisScreen
         selectedState={locations[0] ? resolveStateAbbr(locations[0].state) : selectedState}
         selectedCity={locations[0]?.display ?? null}
@@ -446,7 +474,7 @@ export default function HomePage() {
   }
 
   if (step === "comparison") {
-    return (
+    return renderWithChat(
       <LocationComparisonScreen
         locations={analysisResults}
         onBack={() => setStep("analysis")}
@@ -455,7 +483,7 @@ export default function HomePage() {
   }
 
   if (step === "detail" && detailLocation) {
-    return (
+    return renderWithChat(
       <LocationDetailScreen 
         location={detailLocation} 
         weights={weights} 
@@ -464,9 +492,7 @@ export default function HomePage() {
     )
   }
 
-  const selectedStateName = usStates.find((state) => state.abbr === selectedState)?.name
-
-  return (
+  return renderWithChat(
     <main className="min-h-screen bg-background px-6 py-8 md:px-10">
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
         <header className="flex items-center justify-between gap-4">

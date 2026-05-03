@@ -16,6 +16,20 @@ export type RawScores = {
   accessibility: number
 }
 
+export type ScoreMetrics = {
+  tractCount?: number
+  totalHouseholds?: number
+  wealthyHouseholds?: number
+  wealthyShare?: number
+  schoolAgeChildren?: number
+  bachelorsEstimate?: number
+  averageTractMedianIncome?: number
+  driveTimePopulation?: number
+  competitorCount?: number
+  warnings?: string[]
+  censusVariables?: Record<string, string>
+}
+
 export type CandidateLocation = {
   name: string
   score: number
@@ -24,6 +38,7 @@ export type CandidateLocation = {
   competition: CompetitionLevel
   rationale: string
   rawScores?: RawScores
+  scoreMetrics?: ScoreMetrics
 }
 
 type UnknownRecord = Record<string, unknown>
@@ -94,6 +109,10 @@ export function normalizeCandidateLocation(input: unknown): CandidateLocation {
     competition: toCompetitionLevel(item.competition),
     rationale: asString(item.rationale, ""),
     rawScores,
+    scoreMetrics:
+      item.scoreMetrics && typeof item.scoreMetrics === "object"
+        ? (item.scoreMetrics as ScoreMetrics)
+        : undefined,
   }
 }
 

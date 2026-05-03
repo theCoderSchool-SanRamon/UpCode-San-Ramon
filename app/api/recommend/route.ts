@@ -74,7 +74,10 @@ export async function POST(request: Request) {
       cache: "no-store",
     })
 
-    const payload = (await flaskResponse.json()) as {
+    const contentType = flaskResponse.headers.get("content-type") || ""
+    const payload = (contentType.includes("application/json")
+      ? await flaskResponse.json()
+      : { error: await flaskResponse.text() }) as {
       error?: string
       results?: unknown
     }
