@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react"
 import { ArrowLeft, Calculator, MapPin, Download } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { percent, VISUAL_WEIGHTS } from "@/components/analysis-screen"
-import type { CandidateLocation, Weights } from "@/lib/analysis"
+import type { CandidateLocation, ScoreMetrics, Weights } from "@/lib/analysis"
 import { generateInvestmentBrief } from "@/lib/pdf-utils"
 import { cn } from "@/lib/utils"
 
@@ -47,12 +47,13 @@ export function LocationDetailScreen({ location, weights, onBack }: LocationDeta
           item.label,
           factorScore,
           weightVal,
-          contribution
+          contribution,
+          location.scoreMetrics
         ),
         hasRawScore: hasRawScores,
       }
     })
-  }, [hasRawScores, location.rawScores, weights])
+  }, [hasRawScores, location.rawScores, location.scoreMetrics, weights])
 
   const calculatedTotal = factorDetails.reduce((sum, item) => sum + item.contribution, 0)
   const activeDetail =
@@ -251,7 +252,8 @@ function getFactorExplanation(
   factorLabel: string,
   factorScore: number,
   weightVal: number,
-  contribution: number
+  contribution: number,
+  metrics?: ScoreMetrics
 ) {
   const scoreBand =
     factorScore >= 80 ? "very strong" :
@@ -259,15 +261,79 @@ function getFactorExplanation(
     factorScore >= 40 ? "mixed" :
     "weak"
 
-  const factorSummary: Record<keyof Weights, string> = {
-    wealth: "based on the area's income profile and concentration of higher-income households",
-    family: "based on the area's concentration of families with school-age children",
-    education: "based on district quality, education spending, and STEM-related indicators",
-    competition: "based on how much nearby competition may affect this market",
-    accessibility: "based on convenience factors like access, traffic, and ease of visiting",
+  const weightedImpact =
+    `With your ${percent(weightVal)}% weight on this factor, it contributes ${contribution.toFixed(1)} points to the final score.`
+
+  if (!metrics) {
+    const factorSummary: Record<keyof Weights, string> = {
+      wealth: "based on the area's income profile and concentration of higher-income households",
+      family: "based on the area's concentration of families with school-age children",
+      education: "based on education-related Census indicators available for this location",
+      competition: "based on how much nearby competition may affect this market",
+      accessibility: "based on convenience factors like access, traffic, and ease of visiting",
+    }
+
+    return `${factorLabel} received a ${Math.round(factorScore)}/100 local score, which is ${scoreBand} ${factorSummary[factorKey]}. ${weightedImpact}`
   }
 
-  return `${factorLabel} received a ${Math.round(factorScore)}/100 local score, which is ${scoreBand} ${factorSummary[factorKey]}. With your ${percent(weightVal)}% weight on this factor, it contributes ${contribution.toFixed(1)} points to the final score.`
+  const details: Record<keyof Weights, Array<string | null>> = {
+    wealth: [
+      metrics.wealthyHouseholds !== undefined && metrics.totalHouseholds !== undefined
+        ? `${formatNumber(metrics.wealthyHouseholds)} of ${formatNumber(metrics.totalHouseholds)} households are in the $200k+ income bracket`
+        : null,
+      metrics.wealthyShare !== undefined
+        ? `${formatPercent(metrics.wealthyShare)} of households are $200k+`
+        : null,
+      metrics.averageTractMedianIncome !== undefined
+        ? `average tract median income is about $${formatNumber(metrics.averageTractMedianIncome)}`
+        : null,
+    ],
+    family: [
+      metrics.schoolAgeChildren !== undefined
+        ? `${formatNumber(metrics.schoolAgeChildren)} children were counted by the app's Census child-density proxy`
+        : null,
+      metrics.tractCount !== undefined
+        ? `across ${formatNumber(metrics.tractCount)} census tracts in the 5-mile study area`
+        : null,
+    ],
+    education: [
+      metrics.bachelorsEstimate !== undefined
+        ? `${formatNumber(metrics.bachelorsEstimate)} residents in the queried tracts are counted in the bachelor's-degree Census variable`
+        : null,
+      metrics.bachelorsEstimate !== undefined && metrics.tractCount
+        ? `that averages about ${formatNumber(Math.round(metrics.bachelorsEstimate / metrics.tractCount))} per tract before normalization`
+        : null,
+      metrics.tractCount !== undefined
+        ? `using ${formatNumber(metrics.tractCount)} intersecting census tracts`
+        : null,
+    ],
+    competition: [
+      metrics.competitorCount !== undefined
+        ? `${formatNumber(metrics.competitorCount)} nearby coding school, tutoring, and STEM competitors were found`
+        : null,
+      "lower competitor counts produce higher competition scores",
+    ],
+    accessibility: [
+      metrics.driveTimePopulation !== undefined
+        ? `${formatNumber(metrics.driveTimePopulation)} people are estimated inside the 15-minute drive-time area`
+        : null,
+      metrics.warnings?.length
+        ? `warning: ${metrics.warnings.join("; ")}`
+        : null,
+    ],
+  }
+
+  const specificDetails = details[factorKey].filter(Boolean).join("; ")
+
+  return `${factorLabel} received a ${Math.round(factorScore)}/100 local score, which is ${scoreBand}. It is based on ${specificDetails || "the available local scoring inputs for this result"}. ${weightedImpact}`
+}
+
+function formatNumber(value: number) {
+  return value.toLocaleString()
+}
+
+function formatPercent(value: number) {
+  return `${value.toFixed(1)}%`
 }
 
 function DetailStat({ label, value }: { label: string; value: string }) {
