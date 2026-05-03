@@ -140,7 +140,7 @@ export function AIChat({ context }: AIChatProps) {
                 <Bot className="h-4 w-4" />
               </span>
               <div>
-                <h2 className="text-sm font-semibold text-foreground">AI Advisor</h2>
+                <h2 className="text-sm font-semibold text-foreground">MarketLens Chatbot</h2>
                 <p className="text-xs text-muted-foreground">
                   {hasAnalysis ? "Using current rankings" : "Waiting for analysis"}
                 </p>
@@ -174,7 +174,7 @@ export function AIChat({ context }: AIChatProps) {
                       : "bg-muted text-foreground"
                   )}
                 >
-                  {message.content}
+                  {formatChatMessage(message.content)}
                 </div>
               </div>
             ))}
@@ -202,7 +202,7 @@ export function AIChat({ context }: AIChatProps) {
               onChange={(event) => setInput(event.target.value)}
               placeholder={placeholder}
               className="h-10 min-w-0 flex-1 rounded-md border border-border bg-background px-3 text-sm outline-none transition-shadow placeholder:text-muted-foreground focus:border-ring focus:ring-2 focus:ring-primary/20"
-              aria-label="Ask the AI advisor"
+              aria-label="Ask the MarketLens Chatbot"
             />
             <Button type="submit" size="sm" disabled={!input.trim() || isSending} className="h-10 w-10 p-0">
               {isSending ? (
@@ -235,4 +235,16 @@ function sanitizeAssistantText(text: string) {
     .replace(/\b\d{1,3}(?=[A-Za-z])/g, "")
     .replace(/[ \t]{2,}/g, " ")
     .trim()
+}
+
+function formatChatMessage(text: string) {
+  const parts = text.split(/(\*\*[^*]+\*\*)/g)
+
+  return parts.map((part, index) => {
+    if (part.startsWith("**") && part.endsWith("**")) {
+      return <strong key={index}>{part.slice(2, -2)}</strong>
+    }
+
+    return part
+  })
 }
