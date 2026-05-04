@@ -180,7 +180,6 @@ export function AnalysisScreen({
                         Rank #{index + 1}
                       </p>
                       <h3 className="mt-1 text-lg font-semibold text-foreground">{location.name}</h3>
-                      <p className="mt-2 text-sm text-muted-foreground">{location.rationale}</p>
                     </div>
                     <div className="text-right">
                       <p className="text-xs uppercase tracking-wider text-muted-foreground">Score</p>
