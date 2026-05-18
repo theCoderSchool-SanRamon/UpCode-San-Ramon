@@ -174,6 +174,8 @@ export function AnalysisScreen({
                   (location.estimatedFamilies === "Error" ||
                     location.medianIncome === "Error" ||
                     location.rationale.startsWith("System Error:"))
+                const warnings = location.scoreMetrics?.warnings ?? []
+                const rawScores = location.rawScores
 
                 return (
                 <button
@@ -219,9 +221,25 @@ export function AnalysisScreen({
                     </p>
                   </div>
 
+                  {rawScores ? (
+                    <div className="mt-4 grid gap-2 text-xs sm:grid-cols-5">
+                      <ScorePill label="Wealth" value={rawScores.wealth} />
+                      <ScorePill label="Family" value={rawScores.family} />
+                      <ScorePill label="Education" value={rawScores.education} />
+                      <ScorePill label="Competition" value={rawScores.competition} />
+                      <ScorePill label="Accessibility" value={rawScores.accessibility} />
+                    </div>
+                  ) : null}
+
                   {isErrorResult ? (
                     <p className="mt-3 rounded-md border border-destructive/20 bg-destructive/10 px-3 py-2 text-xs font-medium text-destructive">
                       {location.rationale.replace(/^System Error:\s*/, "")}
+                    </p>
+                  ) : null}
+
+                  {!isErrorResult && warnings.length ? (
+                    <p className="mt-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-800">
+                      {warnings.join("; ")}
                     </p>
                   ) : null}
                 </button>
@@ -232,6 +250,19 @@ export function AnalysisScreen({
         </section>
       </div>
     </main>
+  )
+}
+
+function ScorePill({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="rounded-md border border-border bg-muted/30 px-2.5 py-2">
+      <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+        {label}
+      </p>
+      <p className="mt-1 font-mono text-sm font-semibold text-foreground">
+        {Math.round(value)}/100
+      </p>
+    </div>
   )
 }
 

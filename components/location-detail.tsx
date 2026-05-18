@@ -58,6 +58,7 @@ export function LocationDetailScreen({ location, weights, onBack }: LocationDeta
   const calculatedTotal = factorDetails.reduce((sum, item) => sum + item.contribution, 0)
   const activeDetail =
     factorDetails.find((item) => item.key === activeFactor) ?? factorDetails[0] ?? null
+  const warnings = location.scoreMetrics?.warnings ?? []
 
   useEffect(() => {
     setActiveFactor(VISUAL_WEIGHTS[0].key as keyof Weights)
@@ -126,6 +127,12 @@ export function LocationDetailScreen({ location, weights, onBack }: LocationDeta
             <Calculator className="h-5 w-5 text-muted-foreground" />
             Calculation Logic
           </h2>
+
+          {warnings.length ? (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800">
+              {warnings.join("; ")}
+            </div>
+          ) : null}
 
           <div className="flex flex-col gap-4 lg:flex-row">
             <div className="min-w-0 lg:basis-3/5">
