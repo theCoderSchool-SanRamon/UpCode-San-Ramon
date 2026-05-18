@@ -34,7 +34,7 @@ const DEFAULT_WEIGHTS: Weights = {
   accessibility: 0.1,
 }
 
-const APP_STATE_STORAGE_KEY = "coderSchoolAppState"
+const APP_STATE_STORAGE_KEY = "coderSchoolAppState:v2"
 
 type PageStep = "map" | "config" | "analysis" | "comparison" | "detail"
 
