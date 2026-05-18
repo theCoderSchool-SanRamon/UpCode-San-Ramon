@@ -7,6 +7,7 @@ UpCode Prototype is a Next.js application for ranking candidate markets for theC
 - Next.js 16 App Router
 - React 18
 - TypeScript
+- Python
 - Tailwind CSS
 - Vercel serverless API routes
 - U.S. Census ACS Data API
@@ -49,6 +50,7 @@ lib/
 
 - Node.js 20 or newer
 - pnpm
+- Python 3.11 or newer
 - API keys for production scoring
 
 Install pnpm if needed:
