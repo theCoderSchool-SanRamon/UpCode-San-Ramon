@@ -68,6 +68,21 @@ function toFloat(value: unknown): number {
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : 0
 }
 
+function redactUrl(url: string): string {
+  return url.replace(/([?&]key=)[^&]*/i, "$1[redacted]")
+}
+
+function censusKeyErrorFromHtml(text: string): string | null {
+  if (!/<html/i.test(text)) return null
+  if (/<title>\s*Invalid Key\s*<\/title>/i.test(text)) {
+    return "Census API key is invalid or has not been activated"
+  }
+  if (/<title>\s*Missing Key\s*<\/title>/i.test(text)) {
+    return "CENSUS_API_KEY is not configured"
+  }
+  return null
+}
+
 async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> {
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), HTTP_TIMEOUT_MS)
@@ -84,8 +99,12 @@ async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> {
     try {
       payload = text ? JSON.parse(text) : null
     } catch (err) {
+      const censusKeyError = censusKeyErrorFromHtml(text)
+      if (censusKeyError) {
+        throw new Error(censusKeyError)
+      }
       const snippet = String(text).slice(0, 240).replace(/\s+/g, " ")
-      const msg = `Invalid JSON from ${url} (HTTP ${response.status} ${response.statusText}): ${snippet}`
+      const msg = `Invalid JSON from ${redactUrl(url)} (HTTP ${response.status} ${response.statusText}): ${snippet}`
       throw new Error(msg)
     }
 
@@ -187,6 +206,11 @@ async function lookupTractGeoids(geometry: any): Promise<string[]> {
 async function queryAcs(geoids: string[], variables: string[]): Promise<CensusRows> {
   if (!geoids.length || !variables.length) return {}
 
+  const censusApiKey = process.env.CENSUS_API_KEY
+  if (!censusApiKey) {
+    throw new Error("CENSUS_API_KEY is not configured")
+  }
+
   const rowsByGeoid: CensusRows = {}
 
   for (let index = 0; index < geoids.length; index += ACS_BATCH_SIZE) {
@@ -194,6 +218,7 @@ async function queryAcs(geoids: string[], variables: string[]): Promise<CensusRo
     const params = new URLSearchParams({
       get: ["GEO_ID", ...variables].join(","),
       ucgid: batch.map((geoid) => `1400000US${geoid}`).join(","),
+      key: censusApiKey,
     })
     const payload = await fetchJson<unknown[][]>(`${ACS_5Y_2024_URL}?${params}`)
 

@@ -147,9 +147,24 @@ def _chunked(items: list[str], size: int) -> list[list[str]]:
     return [items[index : index + size] for index in range(0, len(items), size)]
 
 
+def _census_key_error_from_html(text: str) -> str | None:
+    if "<html" not in text.lower():
+        return None
+    lowered = text.lower()
+    if "<title>invalid key</title>" in lowered:
+        return "Census API key is invalid or has not been activated"
+    if "<title>missing key</title>" in lowered:
+        return "CENSUS_API_KEY is not configured"
+    return None
+
+
 def query_acs(geoids: list[str], variables: list[str]) -> dict[str, dict[str, float]]:
     if not geoids or not variables:
         return {}
+
+    census_api_key = os.getenv("CENSUS_API_KEY")
+    if not census_api_key:
+        raise RuntimeError("CENSUS_API_KEY is not configured")
 
     unique_geoids = list(dict.fromkeys(geoids))
     unique_variables = list(dict.fromkeys(variables))
@@ -161,10 +176,15 @@ def query_acs(geoids: list[str], variables: list[str]) -> dict[str, dict[str, fl
             params={
                 "get": ",".join(["GEO_ID", *unique_variables]),
                 "ucgid": ",".join(f"1400000US{geoid}" for geoid in geoid_batch),
+                "key": census_api_key,
             },
             timeout=HTTP_TIMEOUT,
         )
         response.raise_for_status()
+        key_error = _census_key_error_from_html(response.text)
+        if key_error:
+            raise RuntimeError(key_error)
+
         payload = response.json()
         if len(payload) < 2:
             continue

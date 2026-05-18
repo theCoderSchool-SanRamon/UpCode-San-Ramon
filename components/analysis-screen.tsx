@@ -168,7 +168,14 @@ export function AnalysisScreen({
               </Button>
             </div>
             <div className="mt-4 space-y-4">
-              {candidateLocations.map((location, index) => (
+              {candidateLocations.map((location, index) => {
+                const isErrorResult =
+                  location.score === 0 &&
+                  (location.estimatedFamilies === "Error" ||
+                    location.medianIncome === "Error" ||
+                    location.rationale.startsWith("System Error:"))
+
+                return (
                 <button
                   key={`${location.name}-${index}`}
                   onClick={() => onSelectLocation(location)}
@@ -211,8 +218,15 @@ export function AnalysisScreen({
                       </span>
                     </p>
                   </div>
+
+                  {isErrorResult ? (
+                    <p className="mt-3 rounded-md border border-destructive/20 bg-destructive/10 px-3 py-2 text-xs font-medium text-destructive">
+                      {location.rationale.replace(/^System Error:\s*/, "")}
+                    </p>
+                  ) : null}
                 </button>
-              ))}
+                )
+              })}
             </div>
           </div>
         </section>
