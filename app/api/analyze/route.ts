@@ -79,12 +79,20 @@ async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> {
       cache: "no-store",
     })
     const text = await response.text()
-    const payload = text ? JSON.parse(text) : null
+
+    let payload: unknown = null
+    try {
+      payload = text ? JSON.parse(text) : null
+    } catch (err) {
+      const snippet = String(text).slice(0, 240).replace(/\s+/g, " ")
+      const msg = `Invalid JSON from ${url} (HTTP ${response.status} ${response.statusText}): ${snippet}`
+      throw new Error(msg)
+    }
 
     if (!response.ok) {
       const message =
         payload && typeof payload === "object" && "error" in payload
-          ? JSON.stringify(payload.error)
+          ? JSON.stringify((payload as any).error)
           : response.statusText
       throw new Error(message)
     }
