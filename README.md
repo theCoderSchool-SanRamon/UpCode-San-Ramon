@@ -1,49 +1,181 @@
-api/ (Serverless Backend)
+# UpCode Prototype
 
-analyze.py: main Python Flask entry point. Vercel automatically routes POST requests from frontend here to execute serverless scoring logic.
+UpCode Prototype is a Next.js application for ranking candidate markets for theCoderSchool expansion. It combines user-defined priority weights with live demographic, accessibility, and competition signals to produce scored location recommendations and pillar-level score explanations.
 
-app/ (Next.js Frontend)
+## Tech Stack
 
-api/: Contains Next.js native API routes (autocomplete/route.ts and recommend/route.ts).
+- Next.js 16 App Router
+- React 18
+- TypeScript
+- Tailwind CSS
+- Vercel serverless API routes
+- U.S. Census ACS Data API
+- Google Places API
+- Mapbox Isochrone API
 
-globals.css: main stylesheet containing global Tailwind CSS rules.
+## Project Structure
 
-layout.tsx: master React component that wraps entire application (navigation and standard headers).
+```text
+app/
+  api/
+    analyze/        Core scoring endpoint.
+    autocomplete/   Location autocomplete endpoint.
+    chat/           AI chat endpoint.
+    recommend/      Frontend-facing recommendation endpoint.
+  page.tsx          Main application flow.
 
-page.tsx: primary UI page that loads when someone visits site.
+backend/
+  vercel_analysis.py  Python version of scoring helpers and geospatial analysis.
+  eval_access.py      Accessibility utilities.
+  eval_competition.py Competition utilities.
+  query_acs.py        Census ACS query utilities.
 
-backend/ (Python Logic & Data)
+components/
+  analysis-config.tsx             Weight configuration UI.
+  analysis-screen.tsx             Ranked results UI.
+  location-detail.tsx             Pillar-level score explanation UI.
+  location-comparison*.tsx        Comparison views.
+  us-map.tsx                      State selection map.
+  ui/                             Reusable UI primitives.
 
-eval_access.py & eval_wealth.py: helper scripts for processing specific metric calculations.
+lib/
+  analysis.ts    Shared analysis types and response normalization.
+  data.ts        State and preference metadata.
+  pdf-utils.ts   PDF export helpers.
+  utils.ts       Shared utility helpers.
+```
 
-query_acs.py: handles fetching demographic data from US Census API.
+## Requirements
 
-statewise_fips.py: mapping data for State FIPS codes used by  ensus.
+- Node.js 20 or newer
+- pnpm
+- API keys for production scoring
 
-vercel_analysis.py: runs live geospatial queries
+Install pnpm if needed:
 
-components/ (React UI Elements)
+```bash
+npm install -g pnpm
+```
 
-ui/: reusable, foundational design components (buttons, sliders, cards).
+## Environment Variables
 
-analysis-config.tsx, analysis-screen.tsx, location-comparison-screen.tsx, location-comparison.tsx, location-detail.tsx, us-map.tsx: individual React that make up dashboard's visual interface.
+Create a local `.env.local` file in the project root. This file is ignored by git and should not be committed.
 
-lib/ (Utility Functions)
+```bash
+CENSUS_API_KEY=
+GOOGLE_API_KEY=
+MAPBOX_TOKEN=
+HUGGINGFACE_API_KEY=
+NEXT_PUBLIC_CHAT_URL=/api/chat
+```
 
-utils.ts: helper functions to merge Tailwind CSS classes dynamically.
+Required for scoring:
 
-data.ts: allows other screens to import priorities and presets and US States
+- `CENSUS_API_KEY`: required for ACS demographic data such as income, household counts, child/family proxy values, and education estimates.
+- `GOOGLE_API_KEY`: used by Google Places to estimate nearby competitors.
+- `MAPBOX_TOKEN`: used by Mapbox Isochrone to estimate 15-minute drive-time population. Without this, accessibility scores fall back to `0` with a warning.
 
-Root Config Files
+Required for chat:
 
-components.json: config for UI components.
+- `HUGGINGFACE_API_KEY`: used by the Express chat server.
 
-next.config.mjs: settings for Next.js framework.
+## Local Setup
 
-package.json / pnpm-lock.yaml: JavaScript dependencies of specific versions.
+Install dependencies:
 
-postcss.config.js / tailwind.config.ts: config files for Tailwind CSS.
+```bash
+pnpm install
+```
 
-requirements.txt: Python dependencies (Flask and requests) for Vercel.
+Start the Next.js development server:
 
-tsconfig.json / global.d.ts / next-env.d.ts: config files that enforce TypeScript rules
+```bash
+pnpm dev
+```
+
+Open:
+
+```text
+http://localhost:3000
+```
+
+The main app uses Next.js API routes under `app/api`. The separate Express server in `server.js` is only needed for the legacy `/api/chat` server flow:
+
+```bash
+pnpm start:server
+```
+
+## Development Workflow
+
+Run TypeScript checks:
+
+```bash
+pnpm exec tsc --noEmit
+```
+
+Create a production build:
+
+```bash
+pnpm build
+```
+
+Start a production build locally:
+
+```bash
+pnpm build
+pnpm start
+```
+
+## Scoring Flow
+
+1. The user selects candidate locations and priority weights.
+2. The frontend sends the request to `/api/recommend`.
+3. `/api/recommend` normalizes the request and forwards it to `/api/analyze`.
+4. `/api/analyze` gathers live signals:
+   - Census ACS data for wealth, family, and education pillars.
+   - Google Places data for competition.
+   - Mapbox drive-time data for accessibility.
+5. The API returns ranked locations with:
+   - `score`
+   - `rawScores`
+   - `scoreMetrics`
+   - user-facing rationale and warnings
+
+## Vercel Deployment
+
+1. Push changes to the GitHub repository connected to Vercel.
+
+```bash
+git add .
+git commit -m "Describe the change"
+git push origin main
+```
+
+2. In Vercel, confirm the project is connected to the correct repository and branch:
+
+```text
+Repository: 
+Production branch: main
+```
+
+3. Add environment variables in Vercel:
+
+```text
+Project Settings -> Environment Variables
+```
+
+Add the required keys for both Production and Preview if both environments are used:
+
+```bash
+CENSUS_API_KEY
+GOOGLE_API_KEY
+MAPBOX_TOKEN
+HUGGINGFACE_API_KEY
+NEXT_PUBLIC_CHAT_URL
+```
+
+4. Redeploy after changing environment variables:
+
+```text
+Deployments -> latest deployment -> ... -> Redeploy
+```
