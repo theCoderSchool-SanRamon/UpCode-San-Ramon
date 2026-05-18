@@ -111,7 +111,7 @@ export function LocationComparisonView({ locations }: LocationComparisonProps) {
               <SelectContent>
                 {Array.from({ length: maxSelectable - 1 }, (_, index) => index + 2).map((count) => (
                   <SelectItem key={count} value={String(count)}>
-                    {count} cities
+                    {count} Cities
                   </SelectItem>
                 ))}
               </SelectContent>
