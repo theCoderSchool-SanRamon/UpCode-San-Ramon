@@ -34,7 +34,7 @@ function setDocumentFont(
 function addFooter(pdf: jsPDF): void {
   const pageWidth = pdf.internal.pageSize.getWidth()
   const pageHeight = pdf.internal.pageSize.getHeight()
-  const footerY = pageHeight - 15
+  const footerY = pageHeight - 21
 
   pdf.setFontSize(8)
   setDocumentFont(pdf, 'italic')
@@ -136,27 +136,46 @@ export async function generateInvestmentBrief(data: PDFExportData): Promise<void
   addSectionTitle(pdf, 'Strategy Configuration', marginX, yPosition, 46)
   yPosition += 10
 
-  pdf.setDrawColor(203, 213, 225)
-  pdf.setFillColor(249, 250, 251)
-  pdf.roundedRect(marginX, yPosition - 2, contentWidth, 40, 2, 2, 'FD')
-
-  setDocumentFont(pdf, 'normal')
-  pdf.setFontSize(11)
-  pdf.setTextColor(55, 65, 81)
   const weightLabels = ['Wealth', 'Family', 'Education', 'Competition', 'Accessibility']
   const weightKeys: (keyof typeof data.weights)[] = ['wealth', 'family', 'education', 'competition', 'accessibility']
-
-  weightKeys.forEach((key, index) => {
+  const strategyRows = weightKeys.map((key, index) => {
     const weight = Math.round(data.weights[key] * 100)
     const rawScore = data.rawScores?.[key]
-    const contribution = rawScore ? Math.round(weight * rawScore / 100 * 100) / 100 : 'N/A'
-    pdf.text(
-      `${weightLabels[index]}: ${weight}% ${rawScore ? `(Score: ${rawScore}/100, Contribution: ${contribution} pts)` : ''}`,
-      marginX + 6,
-      yPosition + index * 6.2
-    )
+    const hasRawScore = rawScore !== undefined && rawScore !== null
+    const contribution = hasRawScore
+      ? Math.round(weight * rawScore) / 100
+      : null
+
+    return {
+      label: weightLabels[index],
+      weight,
+      scoreText: hasRawScore ? `${Number(rawScore).toFixed(1)}/100` : 'N/A',
+      contributionText: contribution !== null ? `${contribution.toFixed(1)} pts` : 'N/A',
+    }
   })
-  yPosition += 44
+
+  const rowHeight = 7.5
+  const strategyPaddingY = 7
+  const strategyCardHeight = strategyRows.length * rowHeight + strategyPaddingY * 2
+
+  pdf.setDrawColor(203, 213, 225)
+  pdf.setFillColor(249, 250, 251)
+  pdf.roundedRect(marginX, yPosition, contentWidth, strategyCardHeight, 2, 2, 'FD')
+
+  setDocumentFont(pdf, 'normal')
+  pdf.setFontSize(10.5)
+  pdf.setTextColor(55, 65, 81)
+
+  strategyRows.forEach((row, index) => {
+    const rowY = yPosition + strategyPaddingY + index * rowHeight
+    setDocumentFont(pdf, 'bold')
+    pdf.text(row.label, marginX + 6, rowY)
+    setDocumentFont(pdf, 'normal')
+    pdf.text(`Weight: ${row.weight}%`, marginX + 50, rowY)
+    pdf.text(`Score: ${row.scoreText}`, marginX + 88, rowY)
+    pdf.text(`Contribution: ${row.contributionText}`, marginX + 128, rowY)
+  })
+  yPosition += strategyCardHeight + 8
 
   addFooter(pdf)
 
