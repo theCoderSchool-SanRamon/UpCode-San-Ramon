@@ -368,6 +368,25 @@ def analyze_location(location: dict[str, Any], weights: dict[str, float]) -> dic
             "competition": round(score_competition, 2),
             "accessibility": round(score_access, 2),
         },
+        "scoreMetrics": {
+            "tractCount": len(tract_geoids),
+            "totalHouseholds": int(round(total_households)),
+            "wealthyHouseholds": int(round(wealthy_households)),
+            "wealthyShare": round(wealthy_share, 2),
+            "schoolAgeChildren": int(round(total_students)),
+            "bachelorsEstimate": int(round(bachelors_total)),
+            "averageTractMedianIncome": int(round(avg_income)),
+            "driveTimePopulation": int(round(drive_time_pop)),
+            "competitorCount": competitor_count,
+            "warnings": warnings,
+            "censusVariables": {
+                "B19001_001E": "Total households",
+                "B19001_017E": "Households with income of $200,000 or more",
+                "B01001_003E": "Male population under 5 years; used here as the app's child-density proxy",
+                "B15003_022E": "Population 25+ with bachelor's degree",
+                "B19013_001E": "Median household income",
+            },
+        },
     }
 
 
@@ -394,6 +413,9 @@ def analyze_locations(
                         "education": 0,
                         "competition": 0,
                         "accessibility": 0,
+                    },
+                    "scoreMetrics": {
+                        "warnings": [str(exc)],
                     },
                 }
             )

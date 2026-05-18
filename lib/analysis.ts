@@ -56,8 +56,36 @@ function asNumber(value: unknown, fallback = 0): number {
   return Number.isFinite(parsed) ? parsed : fallback
 }
 
+function asOptionalNumber(value: unknown): number | undefined {
+  const parsed = typeof value === "number" ? value : Number(value)
+  return Number.isFinite(parsed) ? parsed : undefined
+}
+
 function asString(value: unknown, fallback = ""): string {
   return typeof value === "string" ? value : fallback
+}
+
+function asRecord(value: unknown): UnknownRecord | null {
+  return value && typeof value === "object" ? (value as UnknownRecord) : null
+}
+
+function asStringRecord(value: unknown): Record<string, string> | undefined {
+  const record = asRecord(value)
+  if (!record) return undefined
+
+  return Object.fromEntries(
+    Object.entries(record).map(([key, val]) => [key, String(val)])
+  )
+}
+
+function asStringArray(value: unknown): string[] | undefined {
+  if (Array.isArray(value)) {
+    return value.map(String).filter(Boolean)
+  }
+  if (typeof value === "string" && value.trim()) {
+    return [value]
+  }
+  return undefined
 }
 
 function toCompetitionLevel(value: unknown): CompetitionLevel {
@@ -75,12 +103,31 @@ function toCompetitionLevel(value: unknown): CompetitionLevel {
   return "Medium"
 }
 
+function normalizeScoreMetrics(input: unknown): ScoreMetrics | undefined {
+  const metrics = asRecord(input)
+  if (!metrics) return undefined
+
+  return {
+    tractCount: asOptionalNumber(metrics.tractCount ?? metrics.tract_count),
+    totalHouseholds: asOptionalNumber(metrics.totalHouseholds ?? metrics.total_households),
+    wealthyHouseholds: asOptionalNumber(metrics.wealthyHouseholds ?? metrics.wealthy_households),
+    wealthyShare: asOptionalNumber(metrics.wealthyShare ?? metrics.wealthy_share),
+    schoolAgeChildren: asOptionalNumber(metrics.schoolAgeChildren ?? metrics.school_age_children),
+    bachelorsEstimate: asOptionalNumber(metrics.bachelorsEstimate ?? metrics.bachelors_estimate),
+    averageTractMedianIncome: asOptionalNumber(
+      metrics.averageTractMedianIncome ?? metrics.average_tract_median_income
+    ),
+    driveTimePopulation: asOptionalNumber(metrics.driveTimePopulation ?? metrics.drive_time_population),
+    competitorCount: asOptionalNumber(metrics.competitorCount ?? metrics.competitor_count),
+    warnings: asStringArray(metrics.warnings),
+    censusVariables: asStringRecord(metrics.censusVariables ?? metrics.census_variables),
+  }
+}
+
 export function normalizeCandidateLocation(input: unknown): CandidateLocation {
-  const item = (input && typeof input === "object" ? input : {}) as UnknownRecord
+  const item = asRecord(input) ?? {}
   const rawScoresInput =
-    item.rawScores && typeof item.rawScores === "object"
-      ? (item.rawScores as UnknownRecord)
-      : null
+    asRecord(item.rawScores) ?? asRecord(item.raw_scores)
 
   const competitionScore = asNumber(
     rawScoresInput?.competition ??
@@ -109,10 +156,7 @@ export function normalizeCandidateLocation(input: unknown): CandidateLocation {
     competition: toCompetitionLevel(item.competition),
     rationale: asString(item.rationale, ""),
     rawScores,
-    scoreMetrics:
-      item.scoreMetrics && typeof item.scoreMetrics === "object"
-        ? (item.scoreMetrics as ScoreMetrics)
-        : undefined,
+    scoreMetrics: normalizeScoreMetrics(item.scoreMetrics ?? item.score_metrics),
   }
 }
 

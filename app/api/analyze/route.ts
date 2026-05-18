@@ -418,6 +418,9 @@ export async function POST(request: Request) {
               competition: 0,
               accessibility: 0,
             },
+            scoreMetrics: {
+              warnings: [error instanceof Error ? error.message : String(error)],
+            },
           }
         }
       })
