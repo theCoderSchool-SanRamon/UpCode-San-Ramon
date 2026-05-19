@@ -46,6 +46,14 @@ type OpenAIResponse = {
   }
 }
 
+type OpenAIInputMessage = {
+  role: "user" | "assistant"
+  content: Array<{
+    type: "input_text" | "output_text"
+    text: string
+  }>
+}
+
 type ChatProviderResult = {
   answer?: string
   error?: string
@@ -123,6 +131,18 @@ function compactContext(context?: ChatContext) {
           scoreMetrics: context.detailLocation.scoreMetrics,
         }
       : null,
+  }
+}
+
+function toOpenAIInputMessage(message: Required<ChatMessage>): OpenAIInputMessage {
+  return {
+    role: message.role,
+    content: [
+      {
+        type: message.role === "assistant" ? "output_text" : "input_text",
+        text: message.content,
+      },
+    ],
   }
 }
 
@@ -387,15 +407,7 @@ export async function POST(request: Request) {
               },
             ],
           },
-          ...messages.map((message) => ({
-            role: message.role,
-            content: [
-              {
-                type: "input_text",
-                text: message.content,
-              },
-            ],
-          })),
+          ...messages.map(toOpenAIInputMessage),
         ],
         max_output_tokens: 500,
       }),
