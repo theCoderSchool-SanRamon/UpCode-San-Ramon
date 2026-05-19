@@ -351,7 +351,7 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         error:
-          "AI chat is not configured. Add OPENAI_API_KEY to your environment and restart the app.",
+          "AI chat is not configured. Add HUGGINGFACE_API_KEY to your environment and restart the app.",
       },
       { status: 500 }
     )
@@ -380,12 +380,24 @@ export async function POST(request: Request) {
 
     const appContext = compactContext(body.context)
 
-    if (!apiKey && hfKey) {
+    if (hfKey) {
       const hfResult = await callHuggingFaceRouter(hfKey, messages, appContext)
       if (hfResult.error) {
-        return NextResponse.json({ error: hfResult.error }, { status: hfResult.status || 500 })
+        if (apiKey) {
+          console.warn("Hugging Face chat failed; falling back to OpenAI:", hfResult.error)
+        } else {
+          return NextResponse.json({ error: hfResult.error }, { status: hfResult.status || 500 })
+        }
+      } else {
+        return NextResponse.json({ answer: hfResult.answer })
       }
-      return NextResponse.json({ answer: hfResult.answer })
+    }
+
+    if (!apiKey) {
+      return NextResponse.json(
+        { error: "AI chat is not configured. Add HUGGINGFACE_API_KEY to your environment and restart the app." },
+        { status: 500 }
+      )
     }
 
     const response = await fetch("https://api.openai.com/v1/responses", {
@@ -417,13 +429,6 @@ export async function POST(request: Request) {
     const payload = (await response.json()) as OpenAIResponse
 
     if (!response.ok) {
-      if (hfKey) {
-        const hfResult = await callHuggingFaceRouter(hfKey, messages, appContext)
-        if (!hfResult.error) {
-          return NextResponse.json({ answer: finalizeAssistantAnswer(hfResult.answer || "", appContext) })
-        }
-      }
-
       return NextResponse.json(
         { error: payload.error?.message || "AI chat request failed." },
         { status: response.status }
