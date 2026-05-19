@@ -172,9 +172,9 @@ function cleanAssistantText(text: string): string {
     .replace(/^[\s\S]*?<\/think>/i, "")
 
   const reasoningSentencePattern =
-    /^(we are asked|we need to|we'll|we have|i need to|i should|i'll|i will|the user|the context|provided app context|i can|let's|so i'll|actually|but the raw|notice that|maybe|need to)\b/i
+    /^(we are asked|we need to|we'll|we have|i need to|i should|i'll|i will|the user|the context|the current detail location|provided app context|i can|let's|so i'll|actually|but note|but the raw|notice that|maybe|need to|looking at|given the app)\b/i
   const promptAnalysisPattern =
-    /\b(user's question|provided app context|app context|ranked results|raw scores|raw family score|score formula|i should provide|i need to be transparent|i'll focus|i'll mention|based solely on the app data)\b/i
+    /\b(user's question|provided app context|app context|ranked results|raw scores|raw family score|the weights are|weighted contributions|score formula|strongest factor might|we should interpret|the question might|i should provide|i need to be transparent|i'll focus|i'll mention|based solely on the app data)\b/i
 
   const sentences = withoutThinkBlocks.split(/(?<=[.!?])\s+/)
   let firstAnswerSentenceIndex = sentences.findIndex((sentence) => {
@@ -200,7 +200,15 @@ function cleanAssistantText(text: string): string {
 }
 
 function hasReasoningLeak(text: string): boolean {
-  return /\b(we are asked|we need to answer|we need to provide|the user is likely|the context shows|based solely on the app data|raw scores show|score formula)\b/i.test(text)
+  return /\b(we are asked|we need to answer|we need to provide|the user is likely|the context shows|the current detail location|but note that|the weights are|weighted contributions|strongest factor might|we should interpret|the question might|based solely on the app data|raw scores show|score formula)\b/i.test(text)
+}
+
+const factorLabels: Record<keyof Weights, string> = {
+  wealth: "Wealth",
+  family: "Family",
+  education: "Education",
+  competition: "Competition",
+  accessibility: "Accessibility",
 }
 
 function buildRankedResultsAnswer(appContext: ReturnType<typeof compactContext>): string {
@@ -228,13 +236,65 @@ function buildRankedResultsAnswer(appContext: ReturnType<typeof compactContext>)
   return `${summary.join(" ")}\n\n${details.join("\n")}`
 }
 
+function buildStrongestFactorAnswer(appContext: ReturnType<typeof compactContext>): string {
+  const location = appContext.detailLocation ?? appContext.rankedResults?.[0]
+  if (!location?.rawScores || !appContext.weights) {
+    return buildRankedResultsAnswer(appContext)
+  }
+
+  const factors = (Object.keys(factorLabels) as Array<keyof Weights>).map((key) => {
+    const rawScore = location.rawScores?.[key] ?? 0
+    const weight = Number(appContext.weights?.[key] ?? 0)
+    return {
+      key,
+      label: factorLabels[key],
+      rawScore,
+      weight,
+      contribution: rawScore * weight,
+    }
+  })
+
+  const strongest = factors.reduce((best, factor) =>
+    factor.contribution > best.contribution ? factor : best
+  )
+  const highRawScores = factors
+    .filter((factor) => factor.rawScore >= 95 && factor.key !== strongest.key)
+    .map((factor) => factor.label)
+
+  const contextNote = highRawScores.length
+    ? ` ${highRawScores.join(", ")} also score very well locally, but they carry less weight in your current strategy.`
+    : ""
+
+  return `${strongest.label} is the strongest factor for ${location.name}. It contributes ${strongest.contribution.toFixed(1)} points because its local score is ${Math.round(strongest.rawScore)}/100 and your weight for it is ${Math.round(strongest.weight * 100)}%.${contextNote}`
+}
+
+function buildDeterministicAnswer(
+  appContext: ReturnType<typeof compactContext>,
+  question?: string
+): string {
+  const normalizedQuestion = question?.toLowerCase() ?? ""
+
+  if (
+    normalizedQuestion.includes("strongest factor") ||
+    normalizedQuestion.includes("best factor") ||
+    normalizedQuestion.includes("biggest factor") ||
+    normalizedQuestion.includes("main factor") ||
+    normalizedQuestion.includes("top factor")
+  ) {
+    return buildStrongestFactorAnswer(appContext)
+  }
+
+  return buildRankedResultsAnswer(appContext)
+}
+
 function finalizeAssistantAnswer(
   answer: string,
-  appContext: ReturnType<typeof compactContext>
+  appContext: ReturnType<typeof compactContext>,
+  question?: string
 ): string {
   const cleaned = cleanAssistantText(answer)
   if (!cleaned || hasReasoningLeak(cleaned)) {
-    return buildRankedResultsAnswer(appContext)
+    return buildDeterministicAnswer(appContext, question)
   }
   return cleaned
 }
@@ -242,7 +302,8 @@ function finalizeAssistantAnswer(
 async function callHuggingFaceRouter(
   hfKey: string,
   messages: Required<ChatMessage>[],
-  appContext: ReturnType<typeof compactContext>
+  appContext: ReturnType<typeof compactContext>,
+  question: string
 ): Promise<ChatProviderResult> {
   const model = process.env.AI_MODEL || "deepseek-ai/DeepSeek-V4-Pro"
   const response = await fetch("https://router.huggingface.co/v1/chat/completions", {
@@ -292,7 +353,8 @@ async function callHuggingFaceRouter(
   return {
     answer: finalizeAssistantAnswer(
       answer || "I could not generate an answer from the AI service.",
-      appContext
+      appContext,
+      question
     ),
   }
 }
@@ -333,7 +395,7 @@ export async function POST(request: Request) {
 
     const appContext = compactContext(body.context)
 
-    const hfResult = await callHuggingFaceRouter(hfKey, messages, appContext)
+    const hfResult = await callHuggingFaceRouter(hfKey, messages, appContext, lastUserMessage.content)
     if (hfResult.error) {
       return NextResponse.json({ error: hfResult.error }, { status: hfResult.status || 500 })
     }
