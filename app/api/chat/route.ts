@@ -197,9 +197,9 @@ function cleanAssistantText(text: string): string {
     .replace(/^[\s\S]*?<\/think>/i, "")
 
   const reasoningSentencePattern =
-    /^(we need to|i need to|i should|i'll|i will|the user|the context|provided app context|i can|let's|so i'll|actually|but the raw|notice that|maybe|need to)\b/i
+    /^(we are asked|we need to|we'll|we have|i need to|i should|i'll|i will|the user|the context|provided app context|i can|let's|so i'll|actually|but the raw|notice that|maybe|need to)\b/i
   const promptAnalysisPattern =
-    /\b(user's question|provided app context|app context|ranked results|raw scores|score formula|i should provide|i need to be transparent|i'll focus|i'll mention)\b/i
+    /\b(user's question|provided app context|app context|ranked results|raw scores|raw family score|score formula|i should provide|i need to be transparent|i'll focus|i'll mention|based solely on the app data)\b/i
 
   const sentences = withoutThinkBlocks.split(/(?<=[.!?])\s+/)
   let firstAnswerSentenceIndex = sentences.findIndex((sentence) => {
@@ -222,6 +222,46 @@ function cleanAssistantText(text: string): string {
     .replace(/\b\d{1,3}(?=[A-Za-z])/g, "")
     .replace(/[ \t]{2,}/g, " ")
     .trim()
+}
+
+function hasReasoningLeak(text: string): boolean {
+  return /\b(we are asked|we need to answer|we need to provide|the user is likely|the context shows|based solely on the app data|raw scores show|score formula)\b/i.test(text)
+}
+
+function buildRankedResultsAnswer(appContext: ReturnType<typeof compactContext>): string {
+  const results = appContext.rankedResults ?? []
+  if (!results.length) {
+    return "I do not have ranked results yet. Run the location analysis first, then I can compare the selected markets."
+  }
+
+  const [top, ...rest] = results
+  const summary = [`Based on the current scores, ${top.name} looks like the strongest option at ${top.score}/100.`]
+
+  if (rest.length) {
+    summary.push(`The rest of the ranking is ${rest.map((location) => `${location.name} (${location.score}/100)`).join(", ")}.`)
+  }
+
+  const details = results.slice(0, 4).map((location) => {
+    const rawScores = location.rawScores
+    const drivers = rawScores
+      ? `wealth ${Math.round(rawScores.wealth)}/100, family ${Math.round(rawScores.family)}/100, education ${Math.round(rawScores.education)}/100, competition ${Math.round(rawScores.competition)}/100, accessibility ${Math.round(rawScores.accessibility)}/100`
+      : `families ${location.estimatedFamilies}, income ${location.medianIncome}, competition ${location.competition}`
+
+    return `${location.name}: ${location.score}/100. ${drivers}.`
+  })
+
+  return `${summary.join(" ")}\n\n${details.join("\n")}`
+}
+
+function finalizeAssistantAnswer(
+  answer: string,
+  appContext: ReturnType<typeof compactContext>
+): string {
+  const cleaned = cleanAssistantText(answer)
+  if (!cleaned || hasReasoningLeak(cleaned)) {
+    return buildRankedResultsAnswer(appContext)
+  }
+  return cleaned
 }
 
 async function callHuggingFaceRouter(
@@ -274,7 +314,12 @@ async function callHuggingFaceRouter(
     answer = answer.split("</think>").pop()?.trim() || answer
   }
 
-  return { answer: cleanAssistantText(answer || "I could not generate an answer from the AI service.") }
+  return {
+    answer: finalizeAssistantAnswer(
+      answer || "I could not generate an answer from the AI service.",
+      appContext
+    ),
+  }
 }
 
 export async function POST(request: Request) {
@@ -363,7 +408,7 @@ export async function POST(request: Request) {
       if (hfKey) {
         const hfResult = await callHuggingFaceRouter(hfKey, messages, appContext)
         if (!hfResult.error) {
-          return NextResponse.json({ answer: hfResult.answer })
+          return NextResponse.json({ answer: finalizeAssistantAnswer(hfResult.answer || "", appContext) })
         }
       }
 
@@ -373,7 +418,7 @@ export async function POST(request: Request) {
       )
     }
 
-    return NextResponse.json({ answer: cleanAssistantText(extractText(payload)) })
+    return NextResponse.json({ answer: finalizeAssistantAnswer(extractText(payload), appContext) })
   } catch (error) {
     return NextResponse.json(
       {

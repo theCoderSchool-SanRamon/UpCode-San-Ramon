@@ -234,9 +234,9 @@ function sanitizeAssistantText(text: string) {
     .replace(/^[\s\S]*?<\/think>/i, "")
 
   const reasoningSentencePattern =
-    /^(we need to|i need to|i should|i'll|i will|the user|the context|provided app context|i can|let's|so i'll|actually|but the raw|notice that|maybe|need to)\b/i
+    /^(we are asked|we need to|we'll|we have|i need to|i should|i'll|i will|the user|the context|provided app context|i can|let's|so i'll|actually|but the raw|notice that|maybe|need to)\b/i
   const promptAnalysisPattern =
-    /\b(user's question|provided app context|app context|ranked results|raw scores|score formula|i should provide|i need to be transparent|i'll focus|i'll mention)\b/i
+    /\b(user's question|provided app context|app context|ranked results|raw scores|raw family score|score formula|i should provide|i need to be transparent|i'll focus|i'll mention|based solely on the app data)\b/i
 
   const sentences = withoutThinkBlocks.split(/(?<=[.!?])\s+/)
   let firstAnswerSentenceIndex = sentences.findIndex((sentence) => {
