@@ -33,27 +33,6 @@ type ChatRequestBody = {
   context?: ChatContext
 }
 
-type OpenAIResponse = {
-  output_text?: string
-  output?: Array<{
-    content?: Array<{
-      text?: string
-      type?: string
-    }>
-  }>
-  error?: {
-    message?: string
-  }
-}
-
-type OpenAIInputMessage = {
-  role: "user" | "assistant"
-  content: Array<{
-    type: "input_text" | "output_text"
-    text: string
-  }>
-}
-
 type ChatProviderResult = {
   answer?: string
   error?: string
@@ -134,18 +113,6 @@ function compactContext(context?: ChatContext) {
   }
 }
 
-function toOpenAIInputMessage(message: Required<ChatMessage>): OpenAIInputMessage {
-  return {
-    role: message.role,
-    content: [
-      {
-        type: message.role === "assistant" ? "output_text" : "input_text",
-        text: message.content,
-      },
-    ],
-  }
-}
-
 const usStateContext = [
   { name: "Alabama", abbr: "AL" },
   { name: "Alaska", abbr: "AK" },
@@ -198,18 +165,6 @@ const usStateContext = [
   { name: "Wisconsin", abbr: "WI" },
   { name: "Wyoming", abbr: "WY" },
 ]
-
-function extractText(payload: OpenAIResponse): string {
-  if (payload.output_text) return payload.output_text
-
-  const text = payload.output
-    ?.flatMap((item) => item.content ?? [])
-    .map((content) => content.text)
-    .filter(Boolean)
-    .join("\n")
-
-  return cleanAssistantText(text || "I could not generate an answer from the available context.")
-}
 
 function cleanAssistantText(text: string): string {
   const withoutThinkBlocks = text
@@ -343,11 +298,9 @@ async function callHuggingFaceRouter(
 }
 
 export async function POST(request: Request) {
-  const apiKey = process.env.OPENAI_API_KEY
-
   const hfKey = process.env.HUGGINGFACE_API_KEY
 
-  if (!apiKey && !hfKey) {
+  if (!hfKey) {
     return NextResponse.json(
       {
         error:
@@ -380,62 +333,12 @@ export async function POST(request: Request) {
 
     const appContext = compactContext(body.context)
 
-    if (hfKey) {
-      const hfResult = await callHuggingFaceRouter(hfKey, messages, appContext)
-      if (hfResult.error) {
-        if (apiKey) {
-          console.warn("Hugging Face chat failed; falling back to OpenAI:", hfResult.error)
-        } else {
-          return NextResponse.json({ error: hfResult.error }, { status: hfResult.status || 500 })
-        }
-      } else {
-        return NextResponse.json({ answer: hfResult.answer })
-      }
+    const hfResult = await callHuggingFaceRouter(hfKey, messages, appContext)
+    if (hfResult.error) {
+      return NextResponse.json({ error: hfResult.error }, { status: hfResult.status || 500 })
     }
 
-    if (!apiKey) {
-      return NextResponse.json(
-        { error: "AI chat is not configured. Add HUGGINGFACE_API_KEY to your environment and restart the app." },
-        { status: 500 }
-      )
-    }
-
-    const response = await fetch("https://api.openai.com/v1/responses", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: process.env.OPENAI_MODEL || "gpt-5-mini",
-        instructions: CHAT_INSTRUCTIONS,
-        input: [
-          {
-            role: "user",
-            content: [
-              {
-                type: "input_text",
-                text: `App context:\n${JSON.stringify(appContext, null, 2)}`,
-              },
-            ],
-          },
-          ...messages.map(toOpenAIInputMessage),
-        ],
-        max_output_tokens: 500,
-      }),
-      cache: "no-store",
-    })
-
-    const payload = (await response.json()) as OpenAIResponse
-
-    if (!response.ok) {
-      return NextResponse.json(
-        { error: payload.error?.message || "AI chat request failed." },
-        { status: response.status }
-      )
-    }
-
-    return NextResponse.json({ answer: finalizeAssistantAnswer(extractText(payload), appContext) })
+    return NextResponse.json({ answer: hfResult.answer })
   } catch (error) {
     return NextResponse.json(
       {
