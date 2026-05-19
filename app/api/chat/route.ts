@@ -56,7 +56,7 @@ const MAX_MESSAGES = 10
 const MAX_RESULTS = 6
 const MAX_SUGGESTIONS = 10
 const CHAT_INSTRUCTIONS =
-  "You are an assistant embedded in a coding school location analysis app. Answer user questions using only the provided app context. Be concise, practical, and transparent when a question cannot be answered from the context. Do not invent local market data. Never include token ids, citation marker numbers, or stray digits attached to words."
+  "You are an assistant embedded in a coding school location analysis app. Answer user questions using only the provided app context. Be concise, practical, and transparent when a question cannot be answered from the context. Do not invent local market data. Return only the final user-facing answer. Do not include reasoning notes, hidden chain-of-thought, planning text, analysis of the prompt, token ids, citation marker numbers, or stray digits attached to words."
 
 function normalizeMessages(input: unknown): Required<ChatMessage>[] {
   if (!Array.isArray(input)) return []
@@ -192,8 +192,32 @@ function extractText(payload: OpenAIResponse): string {
 }
 
 function cleanAssistantText(text: string): string {
-  return text
-    .replace(/<\/think>/g, "")
+  const withoutThinkBlocks = text
+    .replace(/<think>[\s\S]*?<\/think>/gi, "")
+    .replace(/^[\s\S]*?<\/think>/i, "")
+
+  const reasoningSentencePattern =
+    /^(we need to|i need to|i should|i'll|i will|the user|the context|provided app context|i can|let's|so i'll|actually|but the raw|notice that|maybe|need to)\b/i
+  const promptAnalysisPattern =
+    /\b(user's question|provided app context|app context|ranked results|raw scores|score formula|i should provide|i need to be transparent|i'll focus|i'll mention)\b/i
+
+  const sentences = withoutThinkBlocks.split(/(?<=[.!?])\s+/)
+  let firstAnswerSentenceIndex = sentences.findIndex((sentence) => {
+    const trimmed = sentence.trim()
+    return (
+      trimmed &&
+      !reasoningSentencePattern.test(trimmed) &&
+      !promptAnalysisPattern.test(trimmed)
+    )
+  })
+
+  if (firstAnswerSentenceIndex === -1) {
+    firstAnswerSentenceIndex = 0
+  }
+
+  return sentences
+    .slice(firstAnswerSentenceIndex)
+    .join(" ")
     .replace(/(?<=[A-Za-z])\d{1,3}\b/g, "")
     .replace(/\b\d{1,3}(?=[A-Za-z])/g, "")
     .replace(/[ \t]{2,}/g, " ")
