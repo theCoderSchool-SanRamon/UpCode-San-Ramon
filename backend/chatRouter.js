@@ -3,6 +3,7 @@ require('dotenv').config();
 const { OpenAI } = require('openai');
 
 const router = express.Router();
+const CHAT_MAX_TOKENS = 1000;
 
 const client = new OpenAI({
     baseURL: "https://router.huggingface.co/v1",
@@ -29,8 +30,7 @@ function cleanAssistantText(text) {
     return sentences
         .slice(firstAnswerSentenceIndex)
         .join(" ")
-        .replace(/(?<=[A-Za-z])\d{1,3}\b/g, "")
-        .replace(/\b\d{1,3}(?=[A-Za-z])/g, "")
+        .replace(/(?<=[A-Za-z])\d{1,3}(?=\s|$|[.,;:!?])/g, "")
         .replace(/[ \t]{2,}/g, " ")
         .trim();
 }
@@ -67,6 +67,7 @@ router.post('/chat', async (req, res) => {
                 },
                 { role: 'user', content: userMessage }
             ],
+            max_tokens: CHAT_MAX_TOKENS,
         });
 
         let aiReply = chatCompletion.choices?.[0]?.message?.content

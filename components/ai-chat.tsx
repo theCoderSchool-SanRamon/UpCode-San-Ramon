@@ -255,8 +255,7 @@ function sanitizeAssistantText(text: string) {
   return sentences
     .slice(firstAnswerSentenceIndex)
     .join(" ")
-    .replace(/(?<=[A-Za-z])\d{1,3}\b/g, "")
-    .replace(/\b\d{1,3}(?=[A-Za-z])/g, "")
+    .replace(/(?<=[A-Za-z])\d{1,3}(?=\s|$|[.,;:!?])/g, "")
     .replace(/[ \t]{2,}/g, " ")
     .trim()
 }

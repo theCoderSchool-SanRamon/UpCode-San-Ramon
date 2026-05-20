@@ -42,6 +42,7 @@ type ChatProviderResult = {
 const MAX_MESSAGES = 10
 const MAX_RESULTS = 6
 const MAX_SUGGESTIONS = 10
+const CHAT_MAX_TOKENS = 1000
 const CHAT_INSTRUCTIONS =
   "You are an assistant embedded in a coding school location analysis app. Answer user questions using only the provided app context. Be concise, practical, and transparent when a question cannot be answered from the context. Do not invent local market data. Return only the final user-facing answer. Do not include reasoning notes, hidden chain-of-thought, planning text, analysis of the prompt, token ids, citation marker numbers, or stray digits attached to words."
 
@@ -193,10 +194,26 @@ function cleanAssistantText(text: string): string {
   return sentences
     .slice(firstAnswerSentenceIndex)
     .join(" ")
-    .replace(/(?<=[A-Za-z])\d{1,3}\b/g, "")
-    .replace(/\b\d{1,3}(?=[A-Za-z])/g, "")
+    .replace(/(?<=[A-Za-z])\d{1,3}(?=\s|$|[.,;:!?])/g, "")
     .replace(/[ \t]{2,}/g, " ")
     .trim()
+}
+
+function appendAssistantContinuation(answer: string, continuation: string): string {
+  const trimmedAnswer = answer.trimEnd()
+  const trimmedContinuation = continuation.trimStart()
+
+  if (!trimmedAnswer) return trimmedContinuation
+  if (!trimmedContinuation) return trimmedAnswer
+
+  const lastChar = trimmedAnswer.at(-1) ?? ""
+  const firstChar = trimmedContinuation.at(0) ?? ""
+  const shouldJoinDirectly =
+    /[A-Za-z0-9'’$]/.test(lastChar) && /[A-Za-z0-9]/.test(firstChar)
+
+  return shouldJoinDirectly
+    ? `${trimmedAnswer}${trimmedContinuation}`
+    : `${trimmedAnswer} ${trimmedContinuation}`
 }
 
 function hasReasoningLeak(text: string): boolean {
@@ -306,6 +323,18 @@ async function callHuggingFaceRouter(
   question: string
 ): Promise<ChatProviderResult> {
   const model = process.env.AI_MODEL || "deepseek-ai/DeepSeek-V4-Pro"
+  const requestMessages = [
+    { role: "system", content: CHAT_INSTRUCTIONS },
+    {
+      role: "user",
+      content: `App context:\n${JSON.stringify(appContext, null, 2)}`,
+    },
+    ...messages.map((message) => ({
+      role: message.role,
+      content: message.content,
+    })),
+  ]
+
   const response = await fetch("https://router.huggingface.co/v1/chat/completions", {
     method: "POST",
     headers: {
@@ -314,18 +343,8 @@ async function callHuggingFaceRouter(
     },
     body: JSON.stringify({
       model,
-      messages: [
-        { role: "system", content: CHAT_INSTRUCTIONS },
-        {
-          role: "user",
-          content: `App context:\n${JSON.stringify(appContext, null, 2)}`,
-        },
-        ...messages.map((message) => ({
-          role: message.role,
-          content: message.content,
-        })),
-      ],
-      max_tokens: 500,
+      messages: requestMessages,
+      max_tokens: CHAT_MAX_TOKENS,
     }),
     cache: "no-store",
   })
@@ -345,7 +364,46 @@ async function callHuggingFaceRouter(
     }
   }
 
-  let answer = payload?.choices?.[0]?.message?.content || ""
+  const firstChoice = payload?.choices?.[0]
+  let answer = firstChoice?.message?.content || ""
+  if (firstChoice?.finish_reason === "length" && answer.trim()) {
+    const continuation = await fetch("https://router.huggingface.co/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${hfKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model,
+        messages: [
+          ...requestMessages,
+          { role: "assistant", content: answer },
+          {
+            role: "user",
+            content:
+              "Continue the previous answer from exactly where it stopped. Return only the remaining final user-facing answer, with no recap and no reasoning.",
+          },
+        ],
+        max_tokens: CHAT_MAX_TOKENS,
+      }),
+      cache: "no-store",
+    })
+    const continuationText = await continuation.text()
+    let continuationPayload: any = null
+    try {
+      continuationPayload = continuationText ? JSON.parse(continuationText) : null
+    } catch {
+      continuationPayload = null
+    }
+
+    if (continuation.ok) {
+      const continuationAnswer = continuationPayload?.choices?.[0]?.message?.content
+      if (continuationAnswer) {
+        answer = appendAssistantContinuation(answer, continuationAnswer)
+      }
+    }
+  }
+
   if (answer.includes("</think>")) {
     answer = answer.split("</think>").pop()?.trim() || answer
   }
