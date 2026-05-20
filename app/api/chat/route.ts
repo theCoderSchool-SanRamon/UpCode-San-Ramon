@@ -1,471 +1,466 @@
 import { NextResponse } from "next/server"
-import type { CandidateLocation, Weights } from "@/lib/analysis"
+import type { CompetitionLevel, RawScores, Weights } from "@/lib/analysis"
 
-type ChatMessage = {
-  role?: "user" | "assistant"
-  content?: string
+type AnalyzeLocationInput = {
+  name?: string
+  lat?: number
+  lng?: number
+  state?: string
 }
 
-type ChatContext = {
-  step?: string
+type AnalyzeBody = {
+  locations?: AnalyzeLocationInput[]
   weights?: Partial<Weights>
-  selectedState?: string | null
-  selectedStateName?: string
-  selectedLocations?: Array<{
-    display?: string
-    state?: string
-    lat?: number
-    lon?: number
-  }>
-  currentSearchQuery?: string
-  visibleSearchSuggestions?: Array<{
-    display?: string
-    state?: string
-    lat?: number
-    lon?: number
-  }>
-  analysisResults?: CandidateLocation[]
-  detailLocation?: CandidateLocation | null
 }
 
-type ChatRequestBody = {
-  messages?: ChatMessage[]
-  context?: ChatContext
+type CensusRows = Record<string, Record<string, number>>
+
+const ACS_5Y_2024_URL = "https://api.census.gov/data/2024/acs/acs5"
+const TIGERWEB_TRACTS_QUERY_URL =
+  "https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/Tracts_Blocks/MapServer/7/query"
+const MAPBOX_ISOCHRONE_URL = "https://api.mapbox.com/isochrone/v1/mapbox/driving-traffic/"
+const GOOGLE_PLACES_SEARCH_URL = "https://places.googleapis.com/v1/places:searchText"
+
+const EARTH_RADIUS_M = 6_371_008.8
+const M_PER_MI = 1_609.344
+const ACS_BATCH_SIZE = 200
+const HTTP_TIMEOUT_MS = 30_000
+const COMPETITION_RADIUS_MILES = 5
+const COMPETITION_SEARCH_QUERIES = ["coding school", "tutoring service", "STEM program"]
+
+const DEFAULT_WEIGHTS: Weights = {
+  wealth: 0.3,
+  family: 0.25,
+  education: 0.1,
+  competition: 0.2,
+  accessibility: 0.15,
 }
 
-type ChatProviderResult = {
-  answer?: string
-  error?: string
-  status?: number
-}
+function normalizeWeights(input?: Partial<Weights>): Weights {
+  const merged: Weights = {
+    wealth: Number(input?.wealth ?? DEFAULT_WEIGHTS.wealth),
+    family: Number(input?.family ?? DEFAULT_WEIGHTS.family),
+    education: Number(input?.education ?? DEFAULT_WEIGHTS.education),
+    competition: Number(input?.competition ?? DEFAULT_WEIGHTS.competition),
+    accessibility: Number(input?.accessibility ?? DEFAULT_WEIGHTS.accessibility),
+  }
 
-const MAX_MESSAGES = 10
-const MAX_RESULTS = 6
-const MAX_SUGGESTIONS = 10
-const CHAT_MAX_TOKENS = 1000
-const CHAT_INSTRUCTIONS =
-  "You are an assistant embedded in a coding school location analysis app. Answer user questions using only the provided app context. Be concise, practical, and transparent when a question cannot be answered from the context. Do not invent local market data. Return only the final user-facing answer. Do not include reasoning notes, hidden chain-of-thought, planning text, analysis of the prompt, token ids, citation marker numbers, or stray digits attached to words."
+  const total =
+    merged.wealth +
+    merged.family +
+    merged.education +
+    merged.competition +
+    merged.accessibility
 
-function normalizeMessages(input: unknown): Required<ChatMessage>[] {
-  if (!Array.isArray(input)) return []
-
-  return input
-    .filter((message): message is ChatMessage => {
-      return Boolean(
-        message &&
-          typeof message === "object" &&
-          (message as ChatMessage).role &&
-          typeof (message as ChatMessage).content === "string"
-      )
-    })
-    .slice(-MAX_MESSAGES)
-    .map((message) => ({
-      role: message.role === "assistant" ? "assistant" : "user",
-      content: String(message.content).slice(0, 1200),
-    }))
-}
-
-function compactContext(context?: ChatContext) {
-  const scoreFormula =
-    "total score = wealth raw score * wealth weight + family raw score * family weight + education raw score * education weight + competition raw score * competition weight + accessibility raw score * accessibility weight"
+  if (!Number.isFinite(total) || total <= 0) return DEFAULT_WEIGHTS
 
   return {
-    currentScreen: context?.step ?? "unknown",
-    map: {
-      selectedState: context?.selectedState ?? null,
-      selectedStateName: context?.selectedStateName ?? null,
-      allStatesAvailableOnMap: usStateContext,
-      note:
-        "The map contains US state boundaries. City and address candidates are loaded only from the search/autocomplete API after the user types a query.",
-    },
-    search: {
-      currentQuery: context?.currentSearchQuery ?? "",
-      visibleSuggestions: (context?.visibleSearchSuggestions ?? []).slice(0, MAX_SUGGESTIONS),
-    },
-    selectedLocations: (context?.selectedLocations ?? []).slice(0, 5),
-    weights: context?.weights ?? null,
-    scoring: {
-      formula: scoreFormula,
-      rawScoreInputs:
-        "Each ranked result includes rawScores and scoreMetrics. scoreMetrics contains the Census variables and API-derived metrics used to calculate the visible score.",
-    },
-    rankedResults: (context?.analysisResults ?? []).slice(0, MAX_RESULTS).map((location) => ({
-      name: location.name,
-      score: location.score,
-      estimatedFamilies: location.estimatedFamilies,
-      medianIncome: location.medianIncome,
-      competition: location.competition,
-      rationale: location.rationale,
-      rawScores: location.rawScores,
-      scoreMetrics: location.scoreMetrics,
-    })),
-    detailLocation: context?.detailLocation
-      ? {
-          name: context.detailLocation.name,
-          score: context.detailLocation.score,
-          estimatedFamilies: context.detailLocation.estimatedFamilies,
-          medianIncome: context.detailLocation.medianIncome,
-          competition: context.detailLocation.competition,
-          rationale: context.detailLocation.rationale,
-          rawScores: context.detailLocation.rawScores,
-          scoreMetrics: context.detailLocation.scoreMetrics,
-        }
-      : null,
+    wealth: merged.wealth / total,
+    family: merged.family / total,
+    education: merged.education / total,
+    competition: merged.competition / total,
+    accessibility: merged.accessibility / total,
   }
 }
 
-const usStateContext = [
-  { name: "Alabama", abbr: "AL" },
-  { name: "Alaska", abbr: "AK" },
-  { name: "Arizona", abbr: "AZ" },
-  { name: "Arkansas", abbr: "AR" },
-  { name: "California", abbr: "CA" },
-  { name: "Colorado", abbr: "CO" },
-  { name: "Connecticut", abbr: "CT" },
-  { name: "Delaware", abbr: "DE" },
-  { name: "Florida", abbr: "FL" },
-  { name: "Georgia", abbr: "GA" },
-  { name: "Hawaii", abbr: "HI" },
-  { name: "Idaho", abbr: "ID" },
-  { name: "Illinois", abbr: "IL" },
-  { name: "Indiana", abbr: "IN" },
-  { name: "Iowa", abbr: "IA" },
-  { name: "Kansas", abbr: "KS" },
-  { name: "Kentucky", abbr: "KY" },
-  { name: "Louisiana", abbr: "LA" },
-  { name: "Maine", abbr: "ME" },
-  { name: "Maryland", abbr: "MD" },
-  { name: "Massachusetts", abbr: "MA" },
-  { name: "Michigan", abbr: "MI" },
-  { name: "Minnesota", abbr: "MN" },
-  { name: "Mississippi", abbr: "MS" },
-  { name: "Missouri", abbr: "MO" },
-  { name: "Montana", abbr: "MT" },
-  { name: "Nebraska", abbr: "NE" },
-  { name: "Nevada", abbr: "NV" },
-  { name: "New Hampshire", abbr: "NH" },
-  { name: "New Jersey", abbr: "NJ" },
-  { name: "New Mexico", abbr: "NM" },
-  { name: "New York", abbr: "NY" },
-  { name: "North Carolina", abbr: "NC" },
-  { name: "North Dakota", abbr: "ND" },
-  { name: "Ohio", abbr: "OH" },
-  { name: "Oklahoma", abbr: "OK" },
-  { name: "Oregon", abbr: "OR" },
-  { name: "Pennsylvania", abbr: "PA" },
-  { name: "Rhode Island", abbr: "RI" },
-  { name: "South Carolina", abbr: "SC" },
-  { name: "South Dakota", abbr: "SD" },
-  { name: "Tennessee", abbr: "TN" },
-  { name: "Texas", abbr: "TX" },
-  { name: "Utah", abbr: "UT" },
-  { name: "Vermont", abbr: "VT" },
-  { name: "Virginia", abbr: "VA" },
-  { name: "Washington", abbr: "WA" },
-  { name: "West Virginia", abbr: "WV" },
-  { name: "Wisconsin", abbr: "WI" },
-  { name: "Wyoming", abbr: "WY" },
-]
+function toFloat(value: unknown): number {
+  const parsed = typeof value === "number" ? value : Number(value)
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : 0
+}
 
-function cleanAssistantText(text: string): string {
-  const withoutThinkBlocks = text
-    .replace(/<think>[\s\S]*?<\/think>/gi, "")
-    .replace(/^[\s\S]*?<\/think>/i, "")
+function redactUrl(url: string): string {
+  return url.replace(/([?&]key=)[^&]*/i, "$1[redacted]")
+}
 
-  const reasoningSentencePattern =
-    /^(we are asked|we need to|we'll|we have|i need to|i should|i'll|i will|the user|the context|the current detail location|provided app context|i can|let's|so i'll|actually|but note|but the raw|notice that|maybe|need to|looking at|given the app)\b/i
-  const promptAnalysisPattern =
-    /\b(user's question|provided app context|app context|ranked results|raw scores|raw family score|the weights are|weighted contributions|score formula|strongest factor might|we should interpret|the question might|i should provide|i need to be transparent|i'll focus|i'll mention|based solely on the app data)\b/i
-
-  const sentences = withoutThinkBlocks.split(/(?<=[.!?])\s+/)
-  let firstAnswerSentenceIndex = sentences.findIndex((sentence) => {
-    const trimmed = sentence.trim()
-    return (
-      trimmed &&
-      !reasoningSentencePattern.test(trimmed) &&
-      !promptAnalysisPattern.test(trimmed)
-    )
-  })
-
-  if (firstAnswerSentenceIndex === -1) {
-    firstAnswerSentenceIndex = 0
+function censusKeyErrorFromHtml(text: string): string | null {
+  if (!/<html/i.test(text)) return null
+  if (/<title>\s*Invalid Key\s*<\/title>/i.test(text)) {
+    return "Census API key is invalid or has not been activated"
   }
-
-  return sentences
-    .slice(firstAnswerSentenceIndex)
-    .join(" ")
-    .replace(/(?<=[A-Za-z])\d{1,3}(?=\s|$|[.,;:!?])/g, "")
-    .replace(/[ \t]{2,}/g, " ")
-    .trim()
-}
-
-function appendAssistantContinuation(answer: string, continuation: string): string {
-  const trimmedAnswer = answer.trimEnd()
-  const trimmedContinuation = continuation.trimStart()
-
-  if (!trimmedAnswer) return trimmedContinuation
-  if (!trimmedContinuation) return trimmedAnswer
-
-  const lastChar = trimmedAnswer.at(-1) ?? ""
-  const firstChar = trimmedContinuation.at(0) ?? ""
-  const shouldJoinDirectly =
-    /[A-Za-z0-9'’$]/.test(lastChar) && /[A-Za-z0-9]/.test(firstChar)
-
-  return shouldJoinDirectly
-    ? `${trimmedAnswer}${trimmedContinuation}`
-    : `${trimmedAnswer} ${trimmedContinuation}`
-}
-
-function hasReasoningLeak(text: string): boolean {
-  return /\b(we are asked|we need to answer|we need to provide|the user is likely|the context shows|the current detail location|but note that|the weights are|weighted contributions|strongest factor might|we should interpret|the question might|based solely on the app data|raw scores show|score formula)\b/i.test(text)
-}
-
-const factorLabels: Record<keyof Weights, string> = {
-  wealth: "Wealth",
-  family: "Family",
-  education: "Education",
-  competition: "Competition",
-  accessibility: "Accessibility",
-}
-
-function buildRankedResultsAnswer(appContext: ReturnType<typeof compactContext>): string {
-  const results = appContext.rankedResults ?? []
-  if (!results.length) {
-    return "I do not have ranked results yet. Run the location analysis first, then I can compare the selected markets."
+  if (/<title>\s*Missing Key\s*<\/title>/i.test(text)) {
+    return "CENSUS_API_KEY is not configured"
   }
-
-  const [top, ...rest] = results
-  const summary = [`Based on the current scores, ${top.name} looks like the strongest option at ${top.score}/100.`]
-
-  if (rest.length) {
-    summary.push(`The rest of the ranking is ${rest.map((location) => `${location.name} (${location.score}/100)`).join(", ")}.`)
-  }
-
-  const details = results.slice(0, 4).map((location) => {
-    const rawScores = location.rawScores
-    const drivers = rawScores
-      ? `wealth ${Math.round(rawScores.wealth)}/100, family ${Math.round(rawScores.family)}/100, education ${Math.round(rawScores.education)}/100, competition ${Math.round(rawScores.competition)}/100, accessibility ${Math.round(rawScores.accessibility)}/100`
-      : `families ${location.estimatedFamilies}, income ${location.medianIncome}, competition ${location.competition}`
-
-    return `${location.name}: ${location.score}/100. ${drivers}.`
-  })
-
-  return `${summary.join(" ")}\n\n${details.join("\n")}`
+  return null
 }
 
-function buildStrongestFactorAnswer(appContext: ReturnType<typeof compactContext>): string {
-  const location = appContext.detailLocation ?? appContext.rankedResults?.[0]
-  if (!location?.rawScores || !appContext.weights) {
-    return buildRankedResultsAnswer(appContext)
-  }
+async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> {
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), HTTP_TIMEOUT_MS)
 
-  const factors = (Object.keys(factorLabels) as Array<keyof Weights>).map((key) => {
-    const rawScore = location.rawScores?.[key] ?? 0
-    const weight = Number(appContext.weights?.[key] ?? 0)
-    return {
-      key,
-      label: factorLabels[key],
-      rawScore,
-      weight,
-      contribution: rawScore * weight,
-    }
-  })
-
-  const strongest = factors.reduce((best, factor) =>
-    factor.contribution > best.contribution ? factor : best
-  )
-  const highRawScores = factors
-    .filter((factor) => factor.rawScore >= 95 && factor.key !== strongest.key)
-    .map((factor) => factor.label)
-
-  const contextNote = highRawScores.length
-    ? ` ${highRawScores.join(", ")} also score very well locally, but they carry less weight in your current strategy.`
-    : ""
-
-  return `${strongest.label} is the strongest factor for ${location.name}. It contributes ${strongest.contribution.toFixed(1)} points because its local score is ${Math.round(strongest.rawScore)}/100 and your weight for it is ${Math.round(strongest.weight * 100)}%.${contextNote}`
-}
-
-function buildDeterministicAnswer(
-  appContext: ReturnType<typeof compactContext>,
-  question?: string
-): string {
-  const normalizedQuestion = question?.toLowerCase() ?? ""
-
-  if (
-    normalizedQuestion.includes("strongest factor") ||
-    normalizedQuestion.includes("best factor") ||
-    normalizedQuestion.includes("biggest factor") ||
-    normalizedQuestion.includes("main factor") ||
-    normalizedQuestion.includes("top factor")
-  ) {
-    return buildStrongestFactorAnswer(appContext)
-  }
-
-  return buildRankedResultsAnswer(appContext)
-}
-
-function finalizeAssistantAnswer(
-  answer: string,
-  appContext: ReturnType<typeof compactContext>,
-  question?: string
-): string {
-  const cleaned = cleanAssistantText(answer)
-  if (!cleaned || hasReasoningLeak(cleaned)) {
-    return buildDeterministicAnswer(appContext, question)
-  }
-  return cleaned
-}
-
-async function callHuggingFaceRouter(
-  hfKey: string,
-  messages: Required<ChatMessage>[],
-  appContext: ReturnType<typeof compactContext>,
-  question: string
-): Promise<ChatProviderResult> {
-  const model = process.env.AI_MODEL || "deepseek-ai/DeepSeek-V4-Pro"
-  const requestMessages = [
-    { role: "system", content: CHAT_INSTRUCTIONS },
-    {
-      role: "user",
-      content: `App context:\n${JSON.stringify(appContext, null, 2)}`,
-    },
-    ...messages.map((message) => ({
-      role: message.role,
-      content: message.content,
-    })),
-  ]
-
-  const response = await fetch("https://router.huggingface.co/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${hfKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model,
-      messages: requestMessages,
-      max_tokens: CHAT_MAX_TOKENS,
-    }),
-    cache: "no-store",
-  })
-
-  const text = await response.text()
-  let payload: any = null
   try {
-    payload = text ? JSON.parse(text) : null
-  } catch {
-    payload = null
-  }
-
-  if (!response.ok) {
-    return {
-      error: payload?.error?.message || payload?.error || text || "AI chat request failed.",
-      status: response.status,
-    }
-  }
-
-  const firstChoice = payload?.choices?.[0]
-  let answer = firstChoice?.message?.content || ""
-  if (firstChoice?.finish_reason === "length" && answer.trim()) {
-    const continuation = await fetch("https://router.huggingface.co/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${hfKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model,
-        messages: [
-          ...requestMessages,
-          { role: "assistant", content: answer },
-          {
-            role: "user",
-            content:
-              "Continue the previous answer from exactly where it stopped. Return only the remaining final user-facing answer, with no recap and no reasoning.",
-          },
-        ],
-        max_tokens: CHAT_MAX_TOKENS,
-      }),
+    const response = await fetch(url, {
+      ...init,
+      signal: controller.signal,
       cache: "no-store",
     })
-    const continuationText = await continuation.text()
-    let continuationPayload: any = null
+    const text = await response.text()
+
+    let payload: unknown = null
     try {
-      continuationPayload = continuationText ? JSON.parse(continuationText) : null
-    } catch {
-      continuationPayload = null
-    }
-
-    if (continuation.ok) {
-      const continuationAnswer = continuationPayload?.choices?.[0]?.message?.content
-      if (continuationAnswer) {
-        answer = appendAssistantContinuation(answer, continuationAnswer)
+      payload = text ? JSON.parse(text) : null
+    } catch (err) {
+      const censusKeyError = censusKeyErrorFromHtml(text)
+      if (censusKeyError) {
+        throw new Error(censusKeyError)
       }
+      const snippet = String(text).slice(0, 240).replace(/\s+/g, " ")
+      const msg = `Invalid JSON from ${redactUrl(url)} (HTTP ${response.status} ${response.statusText}): ${snippet}`
+      throw new Error(msg)
+    }
+
+    if (!response.ok) {
+      const message =
+        payload && typeof payload === "object" && "error" in payload
+          ? JSON.stringify((payload as any).error)
+          : response.statusText
+      throw new Error(message)
+    }
+
+    return payload as T
+  } finally {
+    clearTimeout(timeout)
+  }
+}
+
+function destinationPoint(
+  latDeg: number,
+  lngDeg: number,
+  bearingDeg: number,
+  distanceM: number
+): [number, number] {
+  const lat1 = (latDeg * Math.PI) / 180
+  const lng1 = (lngDeg * Math.PI) / 180
+  const bearing = (bearingDeg * Math.PI) / 180
+  const angularDistance = distanceM / EARTH_RADIUS_M
+
+  const lat2 = Math.asin(
+    Math.sin(lat1) * Math.cos(angularDistance) +
+      Math.cos(lat1) * Math.sin(angularDistance) * Math.cos(bearing)
+  )
+  let lng2 =
+    lng1 +
+    Math.atan2(
+      Math.sin(bearing) * Math.sin(angularDistance) * Math.cos(lat1),
+      Math.cos(angularDistance) - Math.sin(lat1) * Math.sin(lat2)
+    )
+  lng2 = ((lng2 + Math.PI) % (2 * Math.PI)) - Math.PI
+
+  return [(lat2 * 180) / Math.PI, (lng2 * 180) / Math.PI]
+}
+
+function buildGeodesicCircle(lat: number, lng: number, radiusMiles: number, steps = 72) {
+  const radiusM = radiusMiles * M_PER_MI
+  const ring: number[][] = []
+
+  for (let step = 0; step < steps; step += 1) {
+    const [pointLat, pointLng] = destinationPoint(lat, lng, step * (360 / steps), radiusM)
+    ring.push([pointLng, pointLat])
+  }
+  ring.push(ring[0])
+
+  return { type: "Polygon", coordinates: [ring] }
+}
+
+function geojsonToArcgisPolygon(geometry: any) {
+  if (geometry?.type === "Polygon" && geometry.coordinates) {
+    return { rings: geometry.coordinates, spatialReference: { wkid: 4326 } }
+  }
+  if (geometry?.type === "MultiPolygon" && geometry.coordinates) {
+    return {
+      rings: geometry.coordinates.flatMap((polygon: number[][][]) => polygon),
+      spatialReference: { wkid: 4326 },
+    }
+  }
+  throw new Error(`Unsupported geometry type for tract query: ${geometry?.type}`)
+}
+
+async function lookupTractGeoids(geometry: any): Promise<string[]> {
+  const formData = new URLSearchParams({
+    f: "json",
+    where: "1=1",
+    geometryType: "esriGeometryPolygon",
+    geometry: JSON.stringify(geojsonToArcgisPolygon(geometry)),
+    inSR: "4326",
+    spatialRel: "esriSpatialRelIntersects",
+    returnGeometry: "false",
+    outFields: "GEOID",
+  })
+
+  const payload = await fetchJson<any>(TIGERWEB_TRACTS_QUERY_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: formData,
+  })
+
+  if (payload?.error) {
+    throw new Error(payload.error.message || "TIGERweb query failed")
+  }
+
+  const geoids: string[] = (payload?.features ?? [])
+    .map((feature: any) => String(feature?.attributes?.GEOID ?? "").trim())
+    .filter((geoid: string) => geoid.length === 11 && /^\d+$/.test(geoid))
+
+  return Array.from(new Set(geoids)).sort()
+}
+
+async function queryAcs(geoids: string[], variables: string[]): Promise<CensusRows> {
+  if (!geoids.length || !variables.length) return {}
+
+  const censusApiKey = process.env.CENSUS_API_KEY
+  if (!censusApiKey) {
+    throw new Error("CENSUS_API_KEY is not configured")
+  }
+
+  const rowsByGeoid: CensusRows = {}
+
+  for (let index = 0; index < geoids.length; index += ACS_BATCH_SIZE) {
+    const batch = geoids.slice(index, index + ACS_BATCH_SIZE)
+    const params = new URLSearchParams({
+      get: ["GEO_ID", ...variables].join(","),
+      ucgid: batch.map((geoid) => `1400000US${geoid}`).join(","),
+      key: censusApiKey,
+    })
+    const payload = await fetchJson<unknown[][]>(`${ACS_5Y_2024_URL}?${params}`)
+
+    if (!Array.isArray(payload) || payload.length < 2) continue
+
+    const headers = payload[0].map(String)
+    for (const rawRow of payload.slice(1)) {
+      const row = Object.fromEntries(headers.map((header, rowIndex) => [header, rawRow[rowIndex]]))
+      const geoid = String(row.GEO_ID ?? "").replace("1400000US", "")
+      if (geoid.length !== 11 || !/^\d+$/.test(geoid)) continue
+
+      rowsByGeoid[geoid] = Object.fromEntries(
+        variables.map((variable) => [variable, toFloat(row[variable])])
+      )
     }
   }
 
-  if (answer.includes("</think>")) {
-    answer = answer.split("</think>").pop()?.trim() || answer
+  for (const geoid of geoids) {
+    rowsByGeoid[geoid] ??= Object.fromEntries(variables.map((variable) => [variable, 0]))
   }
+
+  return rowsByGeoid
+}
+
+function sumVariable(rowsByGeoid: CensusRows, variable: string): number {
+  return Object.values(rowsByGeoid).reduce((sum, row) => sum + (row[variable] ?? 0), 0)
+}
+
+async function evaluateAccessibility(lat: number, lng: number): Promise<[number, string | null]> {
+  const token = process.env.MAPBOX_TOKEN
+  if (!token) return [0, "MAPBOX_TOKEN is not configured"]
+
+  const params = new URLSearchParams({
+    contours_minutes: "15",
+    denoise: "1",
+    polygons: "true",
+    access_token: token,
+  })
+  const payload = await fetchJson<any>(`${MAPBOX_ISOCHRONE_URL}${lng},${lat}?${params}`)
+  const geometry = payload?.features?.[0]?.geometry
+  if (!geometry) throw new Error("Mapbox response is missing geometry")
+
+  const tractGeoids = await lookupTractGeoids(geometry)
+  if (!tractGeoids.length) return [0, "No census tracts intersect the Mapbox isochrone"]
+
+  const rows = await queryAcs(tractGeoids, ["B01003_001E"])
+  return [sumVariable(rows, "B01003_001E"), null]
+}
+
+function competitionLevelFromCount(competitorCount: number): CompetitionLevel {
+  if (competitorCount >= 9) return "High"
+  if (competitorCount >= 4) return "Medium"
+  return "Low"
+}
+
+function competitionScoreFromCount(competitorCount: number): number {
+  return Math.max(0, Math.min(100, 100 - (competitorCount / 12) * 100))
+}
+
+async function evaluateCompetition(lat: number, lng: number): Promise<[number, CompetitionLevel, number, string | null]> {
+  const token = process.env.GOOGLE_API_KEY
+  if (!token) return [50, "Medium", 0, "GOOGLE_API_KEY is not configured"]
+
+  const placeIds = new Set<string>()
+
+  for (const textQuery of COMPETITION_SEARCH_QUERIES) {
+    const payload = await fetchJson<any>(GOOGLE_PLACES_SEARCH_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Goog-Api-Key": token,
+        "X-Goog-FieldMask": "places.id,places.businessStatus",
+      },
+      body: JSON.stringify({
+        maxResultCount: 20,
+        locationBias: {
+          circle: {
+            center: { latitude: lat, longitude: lng },
+            radius: COMPETITION_RADIUS_MILES * M_PER_MI,
+          },
+        },
+        textQuery,
+      }),
+    })
+
+    for (const place of payload?.places ?? []) {
+      const placeId = String(place?.id ?? "").trim()
+      const status = String(place?.businessStatus ?? "").trim().toUpperCase()
+      if (placeId && (!status || status === "OPERATIONAL")) placeIds.add(placeId)
+    }
+  }
+
+  const competitorCount = placeIds.size
+  return [
+    competitionScoreFromCount(competitorCount),
+    competitionLevelFromCount(competitorCount),
+    competitorCount,
+    null,
+  ]
+}
+
+async function analyzeLocation(location: AnalyzeLocationInput, weights: Weights) {
+  const lat = Number(location.lat)
+  const lng = Number(location.lng)
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+    throw new Error("Location is missing numeric coordinates")
+  }
+
+  const warnings: string[] = []
+  const tractGeoids = await lookupTractGeoids(buildGeodesicCircle(lat, lng, 5))
+  if (!tractGeoids.length) {
+    throw new Error("No census tracts found within the 5-mile study area")
+  }
+
+  const censusRows = await queryAcs(tractGeoids, [
+    "B19001_001E",
+    "B19001_017E",
+    "B01001_003E",
+    "B15003_022E",
+    "B19013_001E",
+  ])
+
+  const totalHouseholds = sumVariable(censusRows, "B19001_001E")
+  const wealthyHouseholds = sumVariable(censusRows, "B19001_017E")
+  const totalStudents = sumVariable(censusRows, "B01001_003E")
+  const bachelorsTotal = sumVariable(censusRows, "B15003_022E")
+  const incomeTotal = sumVariable(censusRows, "B19013_001E")
+  const tractCount = Math.max(Object.keys(censusRows).length, 1)
+
+  const wealthyShare = totalHouseholds > 0 ? (wealthyHouseholds / totalHouseholds) * 100 : 0
+  const avgBachelors = bachelorsTotal / tractCount
+  const avgIncome = incomeTotal / tractCount
+
+  const [driveTimePopulation, accessWarning] = await evaluateAccessibility(lat, lng)
+  if (accessWarning) warnings.push(accessWarning)
+
+  const [scoreCompetition, competitionLevel, competitorCount, competitionWarning] =
+    await evaluateCompetition(lat, lng)
+  if (competitionWarning) warnings.push(competitionWarning)
+
+  const rawScores: RawScores = {
+    wealth: Math.min((wealthyShare / 25) * 100, 100),
+    family: Math.min((totalStudents / 4000) * 100, 100),
+    education: Math.min((avgBachelors / 800) * 100, 100),
+    competition: scoreCompetition,
+    accessibility: Math.min((driveTimePopulation / 50000) * 100, 100),
+  }
+
+  const finalScore =
+    rawScores.wealth * weights.wealth +
+    rawScores.family * weights.family +
+    rawScores.education * weights.education +
+    rawScores.competition * weights.competition +
+    rawScores.accessibility * weights.accessibility
+
+  const rationaleParts = [
+    `${Math.round(driveTimePopulation).toLocaleString()} people are estimated inside the 15-minute drive-time isochrone.`,
+    `${tractGeoids.length} census tracts intersect the 5-mile study area.`,
+    `Average tract median income is approximately $${Math.round(avgIncome).toLocaleString()}.`,
+    `${competitorCount} nearby competitor locations were found across coding school, tutoring, and STEM program searches.`,
+  ]
+  if (warnings.length) rationaleParts.push(`Warnings: ${warnings.join("; ")}.`)
 
   return {
-    answer: finalizeAssistantAnswer(
-      answer || "I could not generate an answer from the AI service.",
-      appContext,
-      question
+    name: location.name || "Unknown Location",
+    score: Math.round(finalScore),
+    estimatedFamilies: Math.round(totalStudents).toLocaleString(),
+    medianIncome: `${wealthyShare.toFixed(1)}% >$200k`,
+    competition: competitionLevel,
+    rationale: rationaleParts.join(" "),
+    rawScores: Object.fromEntries(
+      Object.entries(rawScores).map(([key, value]) => [key, Number(value.toFixed(2))])
     ),
+    scoreMetrics: {
+      tractCount: tractGeoids.length,
+      totalHouseholds: Math.round(totalHouseholds),
+      wealthyHouseholds: Math.round(wealthyHouseholds),
+      wealthyShare: Number(wealthyShare.toFixed(2)),
+      schoolAgeChildren: Math.round(totalStudents),
+      bachelorsEstimate: Math.round(bachelorsTotal),
+      averageTractMedianIncome: Math.round(avgIncome),
+      driveTimePopulation: Math.round(driveTimePopulation),
+      competitorCount,
+      warnings,
+      censusVariables: {
+        B19001_001E: "Total households",
+        B19001_017E: "Households with income of $200,000 or more",
+        B01001_003E: "Male population under 5 years; used here as the app's child-density proxy",
+        B15003_022E: "Population 25+ with bachelor's degree",
+        B19013_001E: "Median household income",
+      },
+    },
   }
 }
 
 export async function POST(request: Request) {
-  const hfKey = process.env.HUGGINGFACE_API_KEY
-
-  if (!hfKey) {
-    return NextResponse.json(
-      {
-        error:
-          "AI chat is not configured. Add HUGGINGFACE_API_KEY to your environment and restart the app.",
-      },
-      { status: 500 }
-    )
-  }
-
   try {
-    let body: ChatRequestBody = {}
-    try {
-      const raw = await request.text()
-      body = raw ? (JSON.parse(raw) as ChatRequestBody) : {}
-    } catch (err) {
-      return NextResponse.json(
-        { error: `Invalid request body or body already read: ${err instanceof Error ? err.message : String(err)}` },
-        { status: 400 }
-      )
-    }
-    const messages = normalizeMessages(body.messages)
-    const lastUserMessage = [...messages].reverse().find((message) => message.role === "user")
+    const body = (await request.json()) as AnalyzeBody
+    const locations = Array.isArray(body.locations) ? body.locations : []
 
-    if (!lastUserMessage?.content.trim()) {
-      return NextResponse.json(
-        { error: "Send a question to chat with the assistant." },
-        { status: 400 }
-      )
+    if (!locations.length) {
+      return NextResponse.json({ error: "Missing required field: locations" }, { status: 400 })
     }
 
-    const appContext = compactContext(body.context)
+    const weights = normalizeWeights(body.weights)
+    const results = await Promise.all(
+      locations.map(async (location) => {
+        try {
+          return await analyzeLocation(location, weights)
+        } catch (error) {
+          return {
+            name: location.name || "Error Location",
+            score: 0,
+            estimatedFamilies: "Error",
+            medianIncome: "Error",
+            competition: "High" as CompetitionLevel,
+            rationale: `System Error: ${error instanceof Error ? error.message : String(error)}`,
+            rawScores: {
+              wealth: 0,
+              family: 0,
+              education: 0,
+              competition: 0,
+              accessibility: 0,
+            },
+            scoreMetrics: {
+              warnings: [error instanceof Error ? error.message : String(error)],
+            },
+          }
+        }
+      })
+    )
 
-    const hfResult = await callHuggingFaceRouter(hfKey, messages, appContext, lastUserMessage.content)
-    if (hfResult.error) {
-      return NextResponse.json({ error: hfResult.error }, { status: hfResult.status || 500 })
-    }
+    results.sort((a, b) => b.score - a.score)
 
-    return NextResponse.json({ answer: hfResult.answer })
+    return NextResponse.json({ results })
   } catch (error) {
     return NextResponse.json(
       {
         error:
           error instanceof Error
             ? error.message
-            : "Could not complete the AI chat request.",
+            : "Could not complete location analysis",
       },
       { status: 500 }
     )
